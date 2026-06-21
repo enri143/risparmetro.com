@@ -58,7 +58,10 @@ const GAS_FIELDS: FieldDef[] = [
   { key: "gas_iva_soglia", label: "Soglia IVA 10% (Smc/anno)" },
 ];
 
-export function ImpostazioniTab() {
+// ─── ParametriContent ─────────────────────────────────────────────────────────
+// Componente separato così il suo guard di loading non blocca la tab Branding.
+
+function ParametriContent() {
   const { impostazioni, save, reload, loading } = useImpostazioni();
   const [local, setLocal] = useState<Impostazioni | null>(null);
   const [fetchingMercato, setFetchingMercato] = useState(false);
@@ -67,8 +70,7 @@ export function ImpostazioniTab() {
 
   useEffect(() => { if (impostazioni) setLocal(impostazioni); }, [impostazioni]);
 
-  if (loading || !local) return <div className="p-6">Caricamento...</div>;
-
+  if (loading || !local) return <div className="p-6 text-sm text-muted-foreground">Caricamento parametri...</div>;
 
   const set = (p: Partial<Impostazioni>) => setLocal({ ...local, ...p });
 
@@ -77,6 +79,7 @@ export function ImpostazioniTab() {
     pun_f1: local.pun_f1, pun_f2: local.pun_f2, pun_f3: local.pun_f3,
     psv_riferimento: local.psv_riferimento, ccr_gas: local.ccr_gas,
   }); toast.success("Valori di mercato salvati"); };
+
   const salvaFutures = async () => {
     await save({
       pun_futures_1: local.pun_futures_1, pun_futures_2: local.pun_futures_2, pun_futures_3: local.pun_futures_3,
@@ -86,6 +89,7 @@ export function ImpostazioniTab() {
     });
     toast.success("Futures salvati");
   };
+
   const aggiornaMercatoAuto = async () => {
     setFetchingMercato(true);
     try {
@@ -100,11 +104,13 @@ export function ImpostazioniTab() {
       setFetchingMercato(false);
     }
   };
+
   const salvaCoeff = async (fields: FieldDef[]) => {
     const patch: Partial<Impostazioni> = {};
     fields.forEach((f) => { (patch as Record<string, unknown>)[f.key] = local[f.key]; });
     await save(patch); toast.success("Coefficienti salvati");
   };
+
   const ripristina = async () => {
     if (!confirm("Ripristinare tutti i valori di default?")) return;
     await save(DEFAULTS); toast.success("Valori ripristinati");
@@ -131,18 +137,6 @@ export function ImpostazioniTab() {
   );
 
   return (
-    <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 max-w-3xl">
-      <Tabs defaultValue="parametri">
-        <TabsList className="mb-5">
-          <TabsTrigger value="parametri">Parametri</TabsTrigger>
-          <TabsTrigger value="branding">Branding</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="branding">
-          <BrandingTab />
-        </TabsContent>
-
-        <TabsContent value="parametri">
     <div className="space-y-4">
       <Card className="p-5 space-y-3">
         <div className="flex items-center gap-2">
@@ -167,7 +161,6 @@ export function ImpostazioniTab() {
         </p>
       </Card>
 
-
       <Card className="p-5 space-y-3">
         <div className="flex items-center gap-2"><BarChart3 className="w-5 h-5 text-primary" /><h3 className="font-semibold">Valori di mercato</h3></div>
         <p className="text-xs text-muted-foreground">Aggiorna ogni mese per le offerte index. PUN da mercatoelettrico.org, PSV/CCR ARERA.</p>
@@ -190,7 +183,6 @@ export function ImpostazioniTab() {
         </div>
       </Card>
 
-      {/* FUTURES */}
       <Card className="p-5 space-y-3">
         <div className="flex items-center gap-2"><BarChart3 className="w-5 h-5 text-primary" /><h3 className="font-semibold">Previsioni Futures</h3></div>
         <p className="text-xs text-muted-foreground">Prezzi previsti per i prossimi 3 mesi.</p>
@@ -249,6 +241,26 @@ export function ImpostazioniTab() {
         <p className="text-xs text-muted-foreground">Valori ARERA indicativi. Aggiorna dopo ogni delibera trimestrale ARERA.</p>
       </Card>
     </div>
+  );
+}
+
+// ─── ImpostazioniTab ──────────────────────────────────────────────────────────
+// Shell puro: solo Tabs. Nessun guard di loading qui — ogni tab gestisce il
+// proprio stato indipendentemente.
+
+export function ImpostazioniTab() {
+  return (
+    <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 max-w-3xl">
+      <Tabs defaultValue="parametri">
+        <TabsList className="mb-5">
+          <TabsTrigger value="parametri">Parametri</TabsTrigger>
+          <TabsTrigger value="branding">Branding</TabsTrigger>
+        </TabsList>
+        <TabsContent value="parametri">
+          <ParametriContent />
+        </TabsContent>
+        <TabsContent value="branding">
+          <BrandingTab />
         </TabsContent>
       </Tabs>
     </div>
