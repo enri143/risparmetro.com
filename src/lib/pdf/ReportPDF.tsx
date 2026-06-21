@@ -1,7 +1,7 @@
 import { Document, Font, Image, Page, StyleSheet, Text, View, pdf } from '@react-pdf/renderer'
 import type { RisultatoOfferta } from '@/lib/board/calcoloOfferte'
-import InterRegular from '@/assets/fonts/Inter-Regular.woff2'
-import InterBold from '@/assets/fonts/Inter-Bold.woff2'
+import InterRegular from '@/assets/fonts/Inter-Regular.ttf?url'
+import InterBold from '@/assets/fonts/Inter-Bold.ttf?url'
 
 Font.register({
   family: 'Inter',

@@ -33,17 +33,36 @@ interface Extracted {
 }
 
 type StatoRiga = "idle" | "extracting" | "done" | "error";
+
+export interface OcrDoneResult {
+  extracted: Extracted;
+  raw: unknown;
+  filePath: string | null;
+  extractedAt: string;
+}
+
+function mimeToExt(mime: string): string {
+  if (mime === "image/jpeg") return ".jpg";
+  if (mime === "image/png") return ".png";
+  if (mime === "image/webp") return ".webp";
+  if (mime === "application/pdf") return ".pdf";
+  return ".bin";
+}
+
 interface Riga {
   file: File;
   preview: string | null;
   stato: StatoRiga;
   errore?: string;
   extracted?: Extracted;
+  filePath?: string | null;
+  ocrRaw?: unknown;
 }
 
 interface Props {
   dati: DatiCliente;
   onApply: (patch: Partial<DatiCliente>, extracted: Extracted) => void;
+  onOcrDone?: (result: OcrDoneResult) => void;
 }
 
 const MAX_SIZE = 10 * 1024 * 1024;
@@ -109,7 +128,7 @@ function mergeExtracted(list: Extracted[]): Extracted {
   return merged;
 }
 
-export function UploadBollettaButton({ dati, onApply }: Props) {
+export function UploadBollettaButton({ dati, onApply, onOcrDone }: Props) {
   const [open, setOpen] = useState(false);
   const [righe, setRighe] = useState<Riga[]>([]);
   const [working, setWorking] = useState(false);
@@ -155,15 +174,52 @@ export function UploadBollettaButton({ dati, onApply }: Props) {
       if (riga.stato === "done") return;
       try {
         const { base64, mime } = await fileToBase64(riga.file);
+
+        let filePath: string | null = null;
+        try {
+          const { data: tenantId } = await supabase.rpc("current_tenant_id");
+          if (tenantId) {
+            const path = `${tenantId}/${crypto.randomUUID()}${mimeToExt(mime)}`;
+            const { error: uploadErr } = await supabase.storage
+              .from("bollette")
+              .upload(path, riga.file, { upsert: false });
+            if (!uploadErr) filePath = path;
+            else console.warn("[UploadBolletta] storage:", uploadErr.message);
+          }
+        } catch (upErr) {
+          console.warn("[UploadBolletta] storage skip:", upErr);
+        }
+
         const { data, error } = await supabase.functions.invoke("extract-bolletta-board", {
           body: { file_base64: base64, mime_type: mime },
         });
-        if (error) throw error;
-        if (!data?.ok) throw new Error(data?.error || "estrazione fallita");
-        setRighe((r) => r.map((x, idx) => idx === i ? { ...x, stato: "done", extracted: data.extracted as Extracted } : x));
+
+        if (error) {
+          // Prova a leggere il corpo dell'errore HTTP dalla edge function
+          let msg: string | undefined;
+          try {
+            const body = await (error as any).context?.json?.();
+            msg = body?.error ?? body?.message;
+          } catch { /* ignora */ }
+          if (!msg) msg = error.message;
+          console.error("[UploadBolletta] invoke error:", { error, data });
+          throw new Error(msg && !msg.includes("non-2xx") ? msg : "Errore OCR: controlla i log (F12 → Console)");
+        }
+
+        if (!data?.ok) {
+          console.error("[UploadBolletta] ok:false:", data);
+          throw new Error(data?.error || "Errore OCR: controlla i log (F12 → Console)");
+        }
+
+        setRighe((r) => r.map((x, idx) =>
+          idx === i
+            ? { ...x, stato: "done", extracted: data.extracted as Extracted, filePath, ocrRaw: data.raw }
+            : x
+        ));
       } catch (e: any) {
-        console.error("[UploadBolletta] ", e);
-        setRighe((r) => r.map((x, idx) => idx === i ? { ...x, stato: "error", errore: e?.message || "errore" } : x));
+        console.error("[UploadBolletta] catch:", e);
+        const msg: string = e?.message || "Errore OCR: controlla i log (F12 → Console)";
+        setRighe((r) => r.map((x, idx) => idx === i ? { ...x, stato: "error", errore: msg } : x));
       }
     }));
     setWorking(false);
@@ -205,14 +261,23 @@ export function UploadBollettaButton({ dati, onApply }: Props) {
   };
 
   const apply = () => {
-    const done = righe.filter((r) => r.stato === "done" && r.extracted).map((r) => r.extracted!);
-    if (done.length === 0) return;
-    const merged = mergeExtracted(done);
+    const doneRighe = righe.filter((r) => r.stato === "done" && r.extracted);
+    if (doneRighe.length === 0) return;
+    const merged = mergeExtracted(doneRighe.map((r) => r.extracted!));
     onApply(buildPatch(merged), merged);
+    if (onOcrDone) {
+      onOcrDone({
+        extracted: merged,
+        raw: doneRighe.map((r) => r.ocrRaw).filter(Boolean),
+        filePath: doneRighe.find((r) => r.filePath != null)?.filePath ?? null,
+        extractedAt: new Date().toISOString(),
+      });
+    }
     const pezzi: string[] = [];
     if (merged.luce?.consumo_annuo_kwh) pezzi.push(`${merged.luce.consumo_annuo_kwh} kWh/anno`);
     if (merged.gas?.consumo_annuo_smc) pezzi.push(`${merged.gas.consumo_annuo_smc} Smc/anno`);
-    toast.success(`✓ ${done.length} bolletta${done.length > 1 ? "e" : ""} importat${done.length > 1 ? "e" : "a"}${pezzi.length ? " · " + pezzi.join(" · ") : ""}`);
+    const cnt = doneRighe.length;
+    toast.success(`✓ ${cnt} bolletta${cnt > 1 ? "e" : ""} importat${cnt > 1 ? "e" : "a"}${pezzi.length ? " · " + pezzi.join(" · ") : ""}`);
     close();
   };
 

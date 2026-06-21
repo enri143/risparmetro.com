@@ -8,11 +8,11 @@ import {
   Search,
   ShieldCheck,
   ShieldOff,
-  UploadCloud,
   Zap,
 } from "lucide-react";
 import { ConfrontoDettagliatoView } from "./ConfrontoDettagliatoView";
 import { PresentazioneView } from "./PresentazioneView";
+import { UploadBollettaButton, type OcrDoneResult } from "./analisi/UploadBollettaButton";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import { eur } from "@/lib/board/formatters";
@@ -26,6 +26,11 @@ import {
   type TipoFornitura,
   type UsoGas,
 } from "@/lib/board/calcoloOfferte";
+import {
+  fetchParametriAreraLuce,
+  CUTOVER_COMPONENTI,
+  type ParametriAreraLuce,
+} from "@/lib/calcolo/parametriArera";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -300,6 +305,7 @@ export function AnalisiCockpit() {
   });
   const [parametriLuce, setParametriLuce] = useState<ParametriRegolati | null>(null);
   const [parametriGas, setParametriGas] = useState<ParametriRegolati | null>(null);
+  const [areraLuce, setAreraLuce] = useState<ParametriAreraLuce | null>(null);
   const [loadingData, setLoadingData] = useState(true);
   const [loadingZona, setLoadingZona] = useState(false);
 
@@ -328,6 +334,7 @@ export function AnalisiCockpit() {
   const [savingSimulazione, setSavingSimulazione] = useState(false);
   const [saveOk, setSaveOk] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [ocrResult, setOcrResult] = useState<OcrDoneResult | null>(null);
 
   // ── Helpers ──────────────────────────────────────────────────────────────────
   const set = (patch: Partial<DatiCliente>) => {
@@ -347,6 +354,29 @@ export function AnalisiCockpit() {
     setSelectedCteId(null);
     setSaveOk(false);
     setSaveError(null);
+  };
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handleOcrApply = (patch: any, extracted: any) => {
+    const dataPatch: Partial<DatiCliente> = {};
+    if (patch.consumoLuce != null) dataPatch.consumo_annuo_kwh = patch.consumoLuce;
+    if (patch.potenzaKw != null) dataPatch.potenza_impegnata_kw = patch.potenzaKw;
+    if (patch.consumoGas != null) dataPatch.consumo_annuo_smc = patch.consumoGas;
+    if (extracted?.tipo && ["luce", "gas", "dual"].includes(extracted.tipo)) {
+      dataPatch.tipo_fornitura = extracted.tipo as "luce" | "gas" | "dual";
+    }
+    set(dataPatch);
+    if (patch.prezzoLuce != null) setPrezzoMateriaLuce(String(patch.prezzoLuce));
+    if (patch.fissoLuceMese != null) setQuotaFissaLuceAtt(String(patch.fissoLuceMese));
+    if (patch.prezzoGas != null) setPrezzoMateriaGas(String(patch.prezzoGas));
+    if (patch.fissoGasMese != null) setQuotaFissaGasAtt(String(patch.fissoGasMese));
+    if (extracted?.segmento === "business") setClienteSeg("business");
+    else if (extracted?.segmento === "family") setClienteSeg("domestico");
+    if (extracted?.residente != null) setResidenzaSeg(extracted.residente ? "residente" : "non_residente");
+  };
+
+  const handleOcrDone = (result: OcrDoneResult) => {
+    setOcrResult(result);
   };
 
   // ── Initial load ──────────────────────────────────────────────────────────────
@@ -381,6 +411,16 @@ export function AnalisiCockpit() {
       });
 
       setLoadingData(false);
+
+      // Parametri ARERA luce da componenti_regolate (fonte di verità dal 2026-04-01)
+      if (new Date() >= CUTOVER_COMPONENTI) {
+        try {
+          const arera = await fetchParametriAreraLuce(supabase, new Date());
+          if (mounted) setAreraLuce(arera);
+        } catch (e) {
+          console.warn("[AnalisiCockpit] componenti_regolate non disponibile:", (e as Error).message);
+        }
+      }
     }
     load();
     return () => { mounted = false; };
@@ -473,14 +513,22 @@ export function AnalisiCockpit() {
 
   const risultatiLuce = useMemo(() => {
     if (!showResults || !showLuce || !(dati.consumo_annuo_kwh ?? 0)) return [];
+    // Usa componenti_regolate quando disponibile (data >= 2026-04-01), altrimenti parametri_regolati
+    const useArera = areraLuce !== null && new Date() >= CUTOVER_COMPONENTI;
+    const effParamLuce: ParametriRegolati = useArera
+      ? areraLuce.parametriLuce
+      : (parametriLuce ?? FALLBACK_LUCE);
+    const effPrezzi: PrezzoMercato = useArera
+      ? { ...prezziMercato, pun_medio: areraLuce.prezziMercato.pun_medio }
+      : prezziMercato;
     return calcolaConfrontoOfferte(
       { ...dati, tipo_cliente: tipoCliente, spesa_annua_luce: spesaAnnuaLuce, spesa_annua_gas: 0 },
       ctes.filter((c) => c.tipo_fornitura === "luce"),
-      parametriLuce ?? FALLBACK_LUCE,
+      effParamLuce,
       null,
-      prezziMercato,
+      effPrezzi,
     );
-  }, [showResults, showLuce, dati, tipoCliente, spesaAnnuaLuce, ctes, parametriLuce, prezziMercato]);
+  }, [showResults, showLuce, dati, tipoCliente, spesaAnnuaLuce, ctes, parametriLuce, prezziMercato, areraLuce]);
 
   const risultatiGas = useMemo(() => {
     if (!showResults || !showGas || !(dati.consumo_annuo_smc ?? 0)) return [];
@@ -536,6 +584,10 @@ export function AnalisiCockpit() {
             ? Math.round((totalRisparmio / spesaTotale) * 10000) / 100
             : null,
         stato: "bozza",
+        bolletta_ocr: ocrResult
+          ? { extracted: ocrResult.extracted, raw: ocrResult.raw, source: "gemini+claude", extracted_at: ocrResult.extractedAt }
+          : null,
+        bolletta_file_path: ocrResult?.filePath ?? null,
       });
       if (insertErr) throw insertErr;
       setSaveOk(true);
@@ -929,22 +981,23 @@ export function AnalisiCockpit() {
         </div>
 
         {/* Dropzone bolletta */}
-        <div className="xl:col-span-5 min-h-[240px]">
-          <div className="h-full border-2 border-dashed border-brand/20 rounded-xl bg-surface-subtle hover:bg-white transition-colors flex flex-col items-center justify-center p-10 gap-4 text-center cursor-pointer">
-            <div className="w-16 h-16 rounded-full bg-brand-subtle flex items-center justify-center">
-              <UploadCloud className="w-8 h-8 text-brand" />
-            </div>
-            <div>
-              <h2 className="font-semibold text-lg text-text-base">Trascina la bolletta</h2>
-              <p className="text-sm text-text-muted mt-1">
-                PDF o foto — i dati si compilano in automatico
-              </p>
-            </div>
-            <span className="text-[10px] font-bold uppercase tracking-wider bg-white px-3 py-1.5 rounded-full border border-border-ui text-text-muted mt-1">
-              OCR via AI — prossimamente
-            </span>
-            {/* TODO: edge function extract-bolletta-board */}
-          </div>
+        <div className="xl:col-span-5 min-h-[240px] flex flex-col justify-center">
+          <UploadBollettaButton
+            dati={{
+              segmento: isBusiness ? "business" : "family",
+              potenzaKw: dati.potenza_impegnata_kw ?? 3,
+              residente: residenzaSeg === "residente",
+              canoneRai: false,
+              consumoLuce: dati.consumo_annuo_kwh ?? 0,
+              prezzoLuce: parseFloat(prezzoMateriaLuce) || 0,
+              fissoLuceMese: parseFloat(quotaFissaLuceAtt) || 0,
+              consumoGas: dati.consumo_annuo_smc ?? 0,
+              prezzoGas: parseFloat(prezzoMateriaGas) || 0,
+              fissoGasMese: parseFloat(quotaFissaGasAtt) || 0,
+            }}
+            onApply={handleOcrApply}
+            onOcrDone={handleOcrDone}
+          />
         </div>
       </div>
 
