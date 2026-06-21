@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Save, RotateCcw, BarChart3, RefreshCw, LogOut, Eye } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
@@ -13,6 +14,7 @@ import type { Impostazioni } from "@/lib/board/types";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useShowIva, setShowIva } from "@/hooks/useShowIva";
+import { BrandingTab } from "./BrandingTab";
 
 const DEFAULTS: Partial<Impostazioni> = {
   pun_riferimento: 0.12, psv_riferimento: 0.41, ccr_gas: 0.02,
@@ -129,8 +131,19 @@ export function ImpostazioniTab() {
   );
 
   return (
+    <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 max-w-3xl">
+      <Tabs defaultValue="parametri">
+        <TabsList className="mb-5">
+          <TabsTrigger value="parametri">Parametri</TabsTrigger>
+          <TabsTrigger value="branding">Branding</TabsTrigger>
+        </TabsList>
 
-    <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-4 max-w-3xl">
+        <TabsContent value="branding">
+          <BrandingTab />
+        </TabsContent>
+
+        <TabsContent value="parametri">
+    <div className="space-y-4">
       <Card className="p-5 space-y-3">
         <div className="flex items-center gap-2">
           <Eye className="w-5 h-5 text-primary" />
@@ -235,6 +248,9 @@ export function ImpostazioniTab() {
         <Button variant="outline" onClick={ripristina} className="gap-2"><RotateCcw className="w-4 h-4" />Ripristina valori default</Button>
         <p className="text-xs text-muted-foreground">Valori ARERA indicativi. Aggiorna dopo ogni delibera trimestrale ARERA.</p>
       </Card>
+    </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
