@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { ArrowLeft, CheckCircle2, ChevronDown, FileDown, Flame, ShieldCheck, ShieldOff, Zap } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ChevronDown, FileDown, Flame, Loader2, ShieldCheck, ShieldOff, Zap } from "lucide-react";
+import { generateReport } from "@/lib/pdf/generateReport";
 import { cn } from "@/lib/utils";
 import { eur, eurUnit } from "@/lib/board/formatters";
 import {
@@ -381,8 +382,15 @@ export function ConfrontoDettagliatoView({
   const offerteCount = allResults.length;
   const migliorRisparmio = allResults[0]?.risparmio_annuo ?? 0;
 
-  const handleGeneraPDF = () => {
-    // TODO: edge function PDF generation — fase successiva
+  const [generatingPdf, setGeneratingPdf] = useState(false);
+
+  const handleGeneraPDF = async () => {
+    setGeneratingPdf(true);
+    try {
+      await generateReport({ risultatiLuce, risultatiGas, spesaAnnuaLuce, spesaAnnuaGas });
+    } finally {
+      setGeneratingPdf(false);
+    }
   };
 
   return (
@@ -482,10 +490,13 @@ export function ConfrontoDettagliatoView({
         <button
           type="button"
           onClick={handleGeneraPDF}
-          className="flex items-center gap-2 h-11 px-5 rounded-xl bg-brand text-brand-foreground text-sm font-medium hover:bg-brand-hover transition-colors shadow-sm"
+          disabled={generatingPdf}
+          className="flex items-center gap-2 h-11 px-5 rounded-xl bg-brand text-brand-foreground text-sm font-medium hover:bg-brand-hover transition-colors shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          <FileDown className="w-4 h-4" />
-          Genera Report PDF
+          {generatingPdf
+            ? <Loader2 className="w-4 h-4 animate-spin" />
+            : <FileDown className="w-4 h-4" />}
+          {generatingPdf ? 'Generazione...' : 'Genera Report PDF'}
         </button>
       </div>
     </div>
