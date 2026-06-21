@@ -21,7 +21,6 @@ import { useNegotiationDiscount } from "@/hooks/useNegotiationDiscount";
 import { useShowIva } from "@/hooks/useShowIva";
 import { aliquotaIvaCliente, applicaIva, etichettaIva } from "@/lib/board/iva";
 import { clearDraft } from "@/hooks/useDraftAutosave";
-import { BOARD_AUTH_KEY, BOARD_PWD_KEY } from "@/pages/BoardLogin";
 import { Link } from "react-router-dom";
 import { useSgProvvigioni, calcolaProvvigioneSg } from "@/hooks/useSgProvvigioni";
 
@@ -292,10 +291,9 @@ export function ClassificaOfferte({ ctes, dati, imp, noteCliente, onSaved, prese
         nome: r.cte.nome, fornitore: r.cte.fornitore, costoOfferta: r.costoOfferta,
         risparmio: r.risparmio, risparmioPct: r.risparmioPct, prezzoEffettivo: r.prezzoEffettivo,
       }));
-      const password = sessionStorage.getItem(BOARD_PWD_KEY) ?? "";
-      if (!password) {
-        sessionStorage.removeItem(BOARD_AUTH_KEY);
-        sessionStorage.removeItem(BOARD_PWD_KEY);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        await supabase.auth.signOut();
         window.location.assign("/board/login");
         return;
       }
@@ -318,7 +316,7 @@ export function ClassificaOfferte({ ctes, dati, imp, noteCliente, onSaved, prese
         miglior_risparmio_luce: luce[0]?.risparmio ?? 0,
         miglior_risparmio_gas: gas[0]?.risparmio ?? 0,
       };
-      const { data, error } = await supabase.functions.invoke("board-storico", { body: { action: "insert", password, row } });
+      const { data, error } = await supabase.functions.invoke("board-storico", { body: { action: "insert", row } });
       if (error) throw new Error(await leggiErroreFunzione(error));
       if (data?.error) throw new Error(data.error);
       toast.success("Analisi salvata nello storico");

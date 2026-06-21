@@ -1,13 +1,22 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/geist";
+@import "@fontsource-variable/inter";
 
 @custom-variant dark (&:is(.dark *));
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   DESIGN TOKENS — Risparmetro
+   Regola: tutto flat + Inter. L'UNICA eccezione gradient è .bg-savings-hero
+   (card hero "Risparmio Totale Stimato" in modalità presentazione).
+───────────────────────────────────────────────────────────────────────────── */
+
 @theme inline {
+    /* ── Font ── */
+    --font-sans: 'Inter Variable', sans-serif;
     --font-heading: var(--font-sans);
-    --font-sans: 'Geist Variable', sans-serif;
+
+    /* ── shadcn color bridge (invariato) ── */
     --color-sidebar-ring: var(--sidebar-ring);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -39,6 +48,8 @@
     --color-card: var(--card);
     --color-foreground: var(--foreground);
     --color-background: var(--background);
+
+    /* ── Radius ── */
     --radius-sm: calc(var(--radius) * 0.6);
     --radius-md: calc(var(--radius) * 0.8);
     --radius-lg: var(--radius);
@@ -46,6 +57,46 @@
     --radius-2xl: calc(var(--radius) * 1.8);
     --radius-3xl: calc(var(--radius) * 2.2);
     --radius-4xl: calc(var(--radius) * 2.6);
+
+    /* ────────────────────────────────────────────────────────────────────────
+       TOKEN SEMANTICI RISPARMETRO
+       Classi generate: bg-brand, text-brand, border-brand, ecc.
+    ─────────────────────────────────────────────────────────────────────────*/
+
+    /* Indaco primario — pulsanti, link, accent interattivi */
+    --color-brand:            #534AB7;
+    --color-brand-foreground: #ffffff;
+    /* Tono più chiaro per hover/active (brand -15% lightness) */
+    --color-brand-hover:      #443BA0;
+    /* Sfondo tenue — chip selezionata, stato attivo senza bold */
+    --color-brand-subtle:     #EEECf9;
+    --color-brand-subtle-foreground: #3A3290;
+
+    /* Verde risparmio — cifre positive, badge "miglior offerta" */
+    --color-savings:            #1D9E75;
+    --color-savings-foreground: #ffffff;
+    --color-savings-subtle:     #E8F6F1;
+    --color-savings-subtle-foreground: #145C44;
+
+    /* Rosso "spesa attuale" — SOLO nelle barre before/after */
+    --color-spend:            #DC2626;
+    --color-spend-foreground: #ffffff;
+    --color-spend-subtle:     #FEE2E2;
+
+    /* Superfici Attio-inspired (chiare, fredde, flat) */
+    --color-surface:          #ffffff;
+    --color-surface-raised:   #ffffff;   /* card, pannelli */
+    --color-surface-subtle:   #F7F7FB;   /* sfondo sezioni, well, input disabilitati */
+    --color-surface-overlay:  #F0EFF8;   /* chip selezionata, tab attiva */
+
+    /* Bordi 1px (no ombre pesanti) */
+    --color-border-ui:    #E5E4EB;   /* bordi standard */
+    --color-border-focus: #534AB7;   /* focus ring */
+
+    /* Testo */
+    --color-text-base:      #1A1A2E;   /* corpo principale */
+    --color-text-muted:     #6B6A82;   /* label, descrizioni secondarie */
+    --color-text-placeholder: #A8A7BB; /* placeholder input */
 }
 
 :root {
@@ -55,18 +106,19 @@
     --card-foreground: oklch(0.129 0.042 264.695);
     --popover: oklch(1 0 0);
     --popover-foreground: oklch(0.129 0.042 264.695);
-    --primary: oklch(0.208 0.042 265.755);
-    --primary-foreground: oklch(0.984 0.003 247.858);
+    /* Indaco brand — aggiornato da default shadcn */
+    --primary: #534AB7;
+    --primary-foreground: #ffffff;
     --secondary: oklch(0.968 0.007 247.896);
     --secondary-foreground: oklch(0.208 0.042 265.755);
-    --muted: oklch(0.968 0.007 247.896);
-    --muted-foreground: oklch(0.554 0.046 257.417);
-    --accent: oklch(0.968 0.007 247.896);
-    --accent-foreground: oklch(0.208 0.042 265.755);
+    --muted: #F7F7FB;
+    --muted-foreground: #6B6A82;
+    --accent: #EEECf9;
+    --accent-foreground: #3A3290;
     --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.929 0.013 255.508);
-    --input: oklch(0.929 0.013 255.508);
-    --ring: oklch(0.704 0.04 256.788);
+    --border: #E5E4EB;
+    --input: #E5E4EB;
+    --ring: #534AB7;
     --chart-1: oklch(0.646 0.222 41.116);
     --chart-2: oklch(0.6 0.118 184.704);
     --chart-3: oklch(0.398 0.07 227.392);
@@ -120,11 +172,29 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
-    }
+  }
   body {
     @apply bg-background text-foreground;
-    }
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
   html {
     @apply font-sans;
-    }
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   ECCEZIONE ESPLICITA — Hero gradient
+   Usare SOLO su .HeroRisparmio (card "Risparmio Totale Stimato")
+   in modalità presentazione. Tutto il resto è flat.
+───────────────────────────────────────────────────────────────────────────── */
+@utility bg-savings-hero {
+  background: linear-gradient(135deg, #1D9E75 0%, #0D7055 100%);
+}
+
+/* Token shorthand per le barre before/after (rosso spesa attuale) */
+@utility bg-spend-bar {
+  background-color: #DC2626;
+}
+@utility bg-savings-bar {
+  background-color: #1D9E75;
 }

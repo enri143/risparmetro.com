@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { useImpostazioni } from "../ImpostazioniContext";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,7 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import type { Impostazioni } from "@/lib/board/types";
 import { cn } from "@/lib/utils";
-import { BOARD_AUTH_KEY, BOARD_PWD_KEY } from "@/pages/BoardLogin";
+import { supabase } from "@/integrations/supabase/client";
 import { useShowIva, setShowIva } from "@/hooks/useShowIva";
 
 const DEFAULTS: Partial<Impostazioni> = {
@@ -109,9 +108,8 @@ export function ImpostazioniTab() {
     await save(DEFAULTS); toast.success("Valori ripristinati");
   };
 
-  const logout = () => {
-    sessionStorage.removeItem(BOARD_AUTH_KEY);
-    sessionStorage.removeItem(BOARD_PWD_KEY);
+  const logout = async () => {
+    await supabase.auth.signOut();
     navigate("/board/login", { replace: true });
   };
 

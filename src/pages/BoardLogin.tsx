@@ -1,31 +1,35 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/lib/supabase";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Lock } from "lucide-react";
-import { toast } from "sonner";
-
-export const BOARD_AUTH_KEY = "board_authenticated";
-export const BOARD_PWD_KEY = "board_pwd";
 
 export default function BoardLogin() {
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (sessionStorage.getItem(BOARD_AUTH_KEY) === "1") navigate("/board", { replace: true });
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) navigate("/board", { replace: true });
+    });
   }, [navigate]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password !== "energia2026") {
-      toast.error("Password errata");
+    setLoading(true);
+    setError(null);
+    const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
+    if (authError) {
+      setError("Credenziali non valide");
+      setLoading(false);
       return;
     }
-    sessionStorage.setItem(BOARD_AUTH_KEY, "1");
-    sessionStorage.setItem(BOARD_PWD_KEY, password);
     navigate("/board", { replace: true });
   };
 
@@ -36,14 +40,19 @@ export default function BoardLogin() {
           <Lock className="w-5 h-5 text-primary" />
           <h1 className="text-lg font-bold">Salesboard — Accesso</h1>
         </div>
-        <p className="text-xs text-muted-foreground">Inserisci la password per accedere.</p>
+        <p className="text-xs text-muted-foreground">Inserisci le tue credenziali per accedere.</p>
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
-            <Label className="text-xs">Password</Label>
-            <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoFocus required />
+            <Label className="text-xs">Email</Label>
+            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoFocus required />
           </div>
-          <Button type="submit" className="w-full">
-            Entra
+          <div>
+            <Label className="text-xs">Password</Label>
+            <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+          </div>
+          {error && <p className="text-xs text-destructive">{error}</p>}
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading ? "Verifica..." : "Entra"}
           </Button>
         </form>
       </Card>

@@ -7,7 +7,6 @@ import { RotateCw, Phone, Trash2 } from "lucide-react";
 import type { DatiCliente, NoteCliente } from "@/lib/board/types";
 import { eur } from "@/lib/board/formatters";
 import { toast } from "sonner";
-import { BOARD_PWD_KEY } from "@/pages/BoardLogin";
 
 interface Riga {
   id: string;
@@ -32,8 +31,7 @@ export function StoricoTab({ onRicarica }: { onRicarica: (d: DatiCliente, n: Not
   const [rows, setRows] = useState<Riga[] | null>(null);
 
   const carica = useCallback(async () => {
-    const password = sessionStorage.getItem(BOARD_PWD_KEY) ?? "";
-    const { data, error } = await supabase.functions.invoke("board-storico", { body: { action: "list", password } });
+    const { data, error } = await supabase.functions.invoke("board-storico", { body: { action: "list" } });
     if (error || data?.error) {
       toast.error("Errore caricamento storico");
       setRows([]);
@@ -65,8 +63,7 @@ export function StoricoTab({ onRicarica }: { onRicarica: (d: DatiCliente, n: Not
 
   const elimina = async (id: string) => {
     if (!confirm("Eliminare questa analisi?")) return;
-    const password = sessionStorage.getItem(BOARD_PWD_KEY) ?? "";
-    await supabase.functions.invoke("board-storico", { body: { action: "delete", password, id } });
+    await supabase.functions.invoke("board-storico", { body: { action: "delete", id } });
     carica();
   };
 

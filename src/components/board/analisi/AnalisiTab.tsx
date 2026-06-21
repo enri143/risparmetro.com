@@ -1,342 +1,685 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { ClienteForm } from "./ClienteForm";
-import { ClassificaOfferte } from "./ClassificaOfferte";
-import { StoricoTab } from "./StoricoTab";
-import { HeroRisparmio } from "./HeroRisparmio";
-import { BeforeAfterBar } from "./BeforeAfterBar";
-import { useImpostazioni } from "../ImpostazioniContext";
-import type { CTE, DatiCliente, Impostazioni, NoteCliente } from "@/lib/board/types";
-import { classificaCTE } from "@/lib/board/calcoli";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { useEffect, useMemo, useState } from "react";
+import { supabase } from "@/lib/supabase";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
-import { ChevronDown, Eye, FileText, Calculator, History, TrendingUp, Phone } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
+import { Zap, Flame, MapPin, Search, Lock, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { MaxiTrattativaPanel } from "./MaxiTrattativaPanel";
-import { DraftBanner } from "./DraftBanner";
-import { loadDraft, clearDraft, type DraftPayload } from "@/hooks/useDraftAutosave";
+import { eur } from "@/lib/board/formatters";
+import {
+  type CTE,
+  type DatiCliente,
+  type ParametriRegolati,
+  type PrezzoMercato,
+  type RisultatoOfferta,
+  type TipoCliente,
+  type UsoGas,
+  calcolaConfrontoOfferte,
+} from "@/lib/board/calcoloOfferte";
 
-const SG_ENERGIA_NAME = "SG Energia";
+// ─── Tipi Supabase (raw rows) ────────────────────────────────────────────────
 
-const DEFAULT_DATI: DatiCliente = {
-  segmento: "family", potenzaKw: 3, residente: true, canoneRai: true,
-  consumoLuce: 2700, prezzoLuce: 0.25, fissoLuceMese: 12,
-  usaFasce: false, percF1: 33, percF2: 24, percF3: 43,
-  prezzoF1: 0.27, prezzoF2: 0.25, prezzoF3: 0.22,
-  consumoGas: 1400, prezzoGas: 0.90, fissoGasMese: 12,
-};
-const DEFAULT_NOTE: NoteCliente = { nomeCliente: "", telefono: "", note: "" };
-
-function fmtDate(s?: string | null) {
-  if (!s) return "—";
-  try { return new Date(s).toLocaleDateString("it-IT", { day: "2-digit", month: "short", year: "numeric" }); }
-  catch { return "—"; }
+interface SupabaseCteRow {
+  id: string;
+  nome: string;
+  tipo_fornitura: "luce" | "gas" | "dual";
+  tipo_prezzo: "fisso" | "variabile" | "indicizzato";
+  prezzo_energia_luce: number | null;
+  spread_luce: number | null;
+  quota_fissa_luce: number | null;
+  prezzo_energia_gas: number | null;
+  spread_gas: number | null;
+  quota_fissa_gas: number | null;
+  mesi_storno_rischio: number | null;
+  priorita: number;
+  provvigione_override: number | null;
+  provvigione_tipo: string | null;
+  durata_blocco_mesi: number | null;
+  fornitori: { nome: string; colore: string | null } | null;
 }
 
-/** Crea una copia di impostazioni con PUN/PSV sostituiti dal futures del mese selezionato.
- *  Per i PUN per fascia applica gli stessi rapporti relativi (F1≈1.12×, F2≈1.04×, F3≈0.88×) come da spec. */
-function applyFutures(imp: Impostazioni, mese: 1 | 2 | 3): Impostazioni {
-  const pun = imp[`pun_futures_${mese}` as const] as number | null | undefined;
-  const psv = imp[`psv_futures_${mese}` as const] as number | null | undefined;
-  if (pun == null && psv == null) return imp;
+interface ZonaRow {
+  id: string;
+  regione: string;
+  zona_elettrica: string;
+  ambito_gas: string | null;
+}
+
+// ─── Adapter Supabase → tipo CTE del motore ──────────────────────────────────
+
+function adaptCte(row: SupabaseCteRow): CTE {
   return {
-    ...imp,
-    pun_riferimento: pun ?? imp.pun_riferimento,
-    pun_f1: pun != null ? pun * 1.12 : imp.pun_f1,
-    pun_f2: pun != null ? pun * 1.04 : imp.pun_f2,
-    pun_f3: pun != null ? pun * 0.88 : imp.pun_f3,
-    psv_riferimento: psv ?? imp.psv_riferimento,
+    id: row.id,
+    nome: row.nome,
+    fornitore_nome: row.fornitori?.nome ?? "—",
+    fornitore_colore: row.fornitori?.colore ?? undefined,
+    tipo_fornitura: row.tipo_fornitura,
+    tipo_prezzo: row.tipo_prezzo,
+    prezzo_energia_luce: row.prezzo_energia_luce ?? undefined,
+    spread_luce: row.spread_luce ?? undefined,
+    quota_fissa_luce: row.quota_fissa_luce ?? undefined,
+    prezzo_energia_gas: row.prezzo_energia_gas ?? undefined,
+    spread_gas: row.spread_gas ?? undefined,
+    quota_fissa_gas: row.quota_fissa_gas ?? undefined,
+    durata_blocco_mesi: row.durata_blocco_mesi ?? undefined,
+    provvigione: row.provvigione_override ?? undefined,
+    provvigione_tipo: (row.provvigione_tipo as "fisso" | "percentuale") ?? undefined,
+    mesi_storno_rischio: row.mesi_storno_rischio ?? undefined,
+    priorita: row.priorita,
   };
 }
 
-export function AnalisiTab() {
-  const { impostazioni, loading } = useImpostazioni();
-  const [ctes, setCtes] = useState<CTE[]>([]);
-  const [dati, setDati] = useState<DatiCliente>(DEFAULT_DATI);
-  const [note, setNote] = useState<NoteCliente>(DEFAULT_NOTE);
-  const [showResults, setShowResults] = useState(false);
-  const [view, setView] = useState<"calcolo" | "storico">("calcolo");
-  const [openNote, setOpenNote] = useState(false);
-  const [futuresAttivo, setFuturesAttivo] = useState(false);
-  const [futuresMese, setFuturesMese] = useState<1 | 2 | 3>(2);
-  const [presentazione, setPresentazione] = useState(false);
-  const [maxiMode, setMaxiMode] = useState<boolean>(() => {
-    try { return localStorage.getItem("board_maxi_mode") === "1"; } catch { return false; }
-  });
-  const [includeSgEnergia, setIncludeSgEnergia] = useState<boolean>(() => {
-    try { return localStorage.getItem("board_include_sg_energia") === "1"; } catch { return false; }
-  });
-  const [showProvvigioni, setShowProvvigioni] = useState<boolean>(() => {
-    try { return localStorage.getItem("board_show_provvigioni") === "1"; } catch { return false; }
-  });
-  const [filtroTipo, setFiltroTipo] = useState<"entrambi" | "luce" | "gas">("entrambi");
-  const [draft, setDraft] = useState<DraftPayload | null>(() => loadDraft(DEFAULT_DATI.segmento));
-  const datiSnap = useMemo(() => JSON.stringify(dati), [dati]);
-  const datiSnapInit = useRef(datiSnap);
+// ─── Costanti form ───────────────────────────────────────────────────────────
 
-  useEffect(() => {
-    supabase.from("cte").select("*").eq("attiva", true).then(({ data }) => {
-      if (data) setCtes(data as unknown as CTE[]);
-    });
-  }, []);
+const TIPO_CLIENTI: { v: TipoCliente; l: string }[] = [
+  { v: "domestico_residente", l: "Domestico residente" },
+  { v: "domestico_non_residente", l: "Domestico non residente" },
+  { v: "business", l: "Business P.IVA" },
+];
 
-  const ctesFiltrate = useMemo(() => {
-    if (includeSgEnergia) return ctes;
-    return ctes.filter(o => !(o.fornitore ?? "").toLowerCase().includes(SG_ENERGIA_NAME.toLowerCase()));
-  }, [ctes, includeSgEnergia]);
+const USI_GAS: { v: UsoGas; l: string }[] = [
+  { v: "riscaldamento", l: "Riscaldamento" },
+  { v: "cottura_acs", l: "Cottura + ACS" },
+  { v: "entrambi", l: "Entrambi" },
+];
 
-  const impEff = useMemo(() => {
-    if (!impostazioni) return null;
-    return futuresAttivo ? applyFutures(impostazioni, futuresMese) : impostazioni;
-  }, [impostazioni, futuresAttivo, futuresMese]);
+const POTENZE_DOM = [3, 4.5, 6];
+const POTENZE_BUS = [6, 10, 15, 30];
 
-  const lucePresentazione = useMemo(
-    () => (showResults && impEff && filtroTipo !== "gas" ? classificaCTE(ctesFiltrate, dati, impEff, "luce") : []),
-    [ctesFiltrate, dati, impEff, showResults, filtroTipo],
+// ─── Dati form di default ────────────────────────────────────────────────────
+
+const DATI_DEFAULT: DatiCliente = {
+  tipo_fornitura: "luce",
+  tipo_cliente: "domestico_residente",
+  consumo_annuo_kwh: 2700,
+  consumo_annuo_smc: 1200,
+  potenza_impegnata_kw: 3,
+  uso_gas: "riscaldamento",
+};
+
+// ─── Componente SelettoreChip ─────────────────────────────────────────────────
+
+function Chip<T extends string>({
+  options,
+  value,
+  onChange,
+}: {
+  options: { v: T; l: string }[];
+  value: T;
+  onChange: (v: T) => void;
+}) {
+  return (
+    <div className="inline-flex flex-wrap gap-1.5">
+      {options.map((o) => (
+        <button
+          key={o.v}
+          type="button"
+          onClick={() => onChange(o.v)}
+          className={cn(
+            "px-3 py-2 min-h-[44px] text-sm rounded-md border transition-colors cursor-pointer",
+            value === o.v
+              ? "bg-primary text-primary-foreground border-primary"
+              : "bg-background hover:bg-muted border-input",
+          )}
+        >
+          {o.l}
+        </button>
+      ))}
+    </div>
   );
-  const gasPresentazione = useMemo(
-    () => (showResults && impEff && filtroTipo !== "luce" ? classificaCTE(ctesFiltrate, dati, impEff, "gas") : []),
-    [ctesFiltrate, dati, impEff, showResults, filtroTipo],
-  );
+}
 
-  // Persist Maxi mode
-  useEffect(() => {
-    try { localStorage.setItem("board_maxi_mode", maxiMode ? "1" : "0"); } catch { /* noop */ }
-  }, [maxiMode]);
+// ─── Card risultato singola offerta ──────────────────────────────────────────
 
-  // Persist SG Energia toggle
-  useEffect(() => {
-    try { localStorage.setItem("board_include_sg_energia", includeSgEnergia ? "1" : "0"); } catch { /* noop */ }
-  }, [includeSgEnergia]);
-
-  // Persist Provvigioni toggle
-  useEffect(() => {
-    try { localStorage.setItem("board_show_provvigioni", showProvvigioni ? "1" : "0"); } catch { /* noop */ }
-  }, [showProvvigioni]);
-
-  // Esci da Maxi quando l'agente cambia i dati cliente
-  useEffect(() => {
-    if (maxiMode && datiSnap !== datiSnapInit.current) {
-      setMaxiMode(false);
-      datiSnapInit.current = datiSnap;
-    }
-  }, [datiSnap, maxiMode]);
-
-  // Aggiorna draft quando cambia segmento
-  useEffect(() => {
-    setDraft(loadDraft(dati.segmento));
-  }, [dati.segmento]);
-
-  if (loading || !impostazioni || !impEff) return <div className="p-6"><Skeleton className="h-96" /></div>;
-
-  const ricaricaDaStorico = (d: DatiCliente, n: NoteCliente) => {
-    setDati(d); setNote(n); setView("calcolo"); setShowResults(true); setOpenNote(true);
-    setDraft(null);
-  };
-
-  const resumeDraft = () => {
-    if (!draft) return;
-    setDati(draft.dati);
-    if (draft.modalita) setFiltroTipo(draft.modalita);
-    setDraft(null);
-    datiSnapInit.current = JSON.stringify(draft.dati);
-  };
-  const discardDraft = () => {
-    clearDraft(dati.segmento);
-    setDraft(null);
-  };
-
-  const hasFutures = !!(impostazioni.pun_futures_1 || impostazioni.pun_futures_2 || impostazioni.pun_futures_3);
+function RisultatoCard({ r, idx, haSpesa }: { r: RisultatoOfferta; idx: number; haSpesa: boolean }) {
+  const negativo = haSpesa && r.risparmio_annuo < 0;
+  const positivo = haSpesa && r.risparmio_annuo > 0;
+  const medals = ["🥇", "🥈", "🥉"];
+  const borderClass = negativo
+    ? "border-l-red-500 bg-red-50/30"
+    : positivo && idx < 3
+      ? (["border-l-green-500 bg-green-50/30", "border-l-blue-500", "border-l-orange-400"][idx] ?? "border-l-border")
+      : "border-l-border";
 
   return (
-    <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-4 max-w-full overflow-x-hidden">
-      <div className="inline-flex rounded-lg border bg-muted p-1 gap-1">
-        {[{ v: "calcolo" as const, l: "Calcolo", icon: Calculator }, { v: "storico" as const, l: "Storico", icon: History }].map((o) => {
-          const I = o.icon;
-          return (
-            <button key={o.v} onClick={() => setView(o.v)}
-              className={cn("flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-colors",
-                view === o.v ? "bg-background text-foreground shadow-sm font-medium" : "text-muted-foreground hover:text-foreground")}>
-              <I className="w-4 h-4" /> {o.l}
-            </button>
-          );
-        })}
+    <Card className={cn("border-l-4 p-4 space-y-3", borderClass)}>
+      {/* intestazione */}
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {positivo && idx < 3 && <span className="text-base">{medals[idx]}</span>}
+            <span className="font-semibold truncate">{r.nome}</span>
+            <Badge
+              variant="secondary"
+              className={cn(
+                "text-[10px] gap-1",
+                r.tipo_prezzo === "fisso"
+                  ? "bg-green-100 text-green-700"
+                  : "bg-blue-100 text-blue-700",
+              )}
+            >
+              {r.tipo_prezzo === "fisso" ? (
+                <><Lock className="w-2.5 h-2.5" /> FISSO</>
+              ) : (
+                <><TrendingUp className="w-2.5 h-2.5" /> {r.tipo_prezzo.toUpperCase()}</>
+              )}
+            </Badge>
+            {r.durata_blocco_mesi && (
+              <Badge variant="outline" className="text-[10px]">
+                {r.durata_blocco_mesi} mesi
+              </Badge>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground mt-0.5">{r.fornitore_nome}</p>
+        </div>
       </div>
 
-      {view === "storico" ? (
-        <StoricoTab onRicarica={ricaricaDaStorico} />
-      ) : (
-        <div className="grid lg:grid-cols-2 gap-6">
-          <div className="space-y-4">
-            {draft && (
-              <DraftBanner draft={draft} onResume={resumeDraft} onDiscard={discardDraft} />
-            )}
-            <ClienteForm dati={dati} onChange={setDati} onSubmit={() => setShowResults(true)} />
-
-
-            {/* Toggle Prezzo attuale / Futures */}
-            <Card className="p-4 space-y-3">
-              <div className="inline-flex rounded-lg border bg-muted p-1 gap-1">
-                <button onClick={() => setFuturesAttivo(false)}
-                  className={cn("px-3 py-1.5 text-sm rounded-md transition-colors",
-                    !futuresAttivo ? "bg-background text-foreground shadow-sm font-medium" : "text-muted-foreground")}>
-                  Prezzo attuale
-                </button>
-                <button onClick={() => setFuturesAttivo(true)} disabled={!hasFutures}
-                  className={cn("flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-colors",
-                    futuresAttivo ? "bg-background text-foreground shadow-sm font-medium" : "text-muted-foreground",
-                    !hasFutures && "opacity-40 cursor-not-allowed")}>
-                  <TrendingUp className="w-3.5 h-3.5" /> Futures
-                </button>
-              </div>
-
-              {futuresAttivo && hasFutures && (
-                <>
-                  <div className="flex flex-wrap gap-2">
-                    {([1, 2, 3] as const).map((m) => {
-                      const mese = impostazioni[`futures_mese_${m}` as const];
-                      const pun = impostazioni[`pun_futures_${m}` as const];
-                      const psv = impostazioni[`psv_futures_${m}` as const];
-                      if (pun == null && psv == null) return null;
-                      const active = futuresMese === m;
-                      return (
-                        <button key={m} onClick={() => setFuturesMese(m)}
-                          className={cn("text-left px-3 py-2 rounded-md border text-xs transition-colors",
-                            active ? "border-primary bg-primary/10" : "bg-background hover:bg-muted")}>
-                          <div className="font-medium">{mese ?? `Mese +${m}`}</div>
-                          <div className="font-mono text-[10px] text-muted-foreground mt-0.5">
-                            PUN {pun != null ? Number(pun).toFixed(4) : "—"} · PSV {psv != null ? Number(psv).toFixed(4) : "—"}
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <div className="rounded-md bg-blue-50 border border-blue-200 p-2 text-[11px] text-blue-900">
-                    📈 Calcolo su previsioni futures {impostazioni[`futures_mese_${futuresMese}` as const] ?? `+${futuresMese} mesi`} — il contratto si attiva tra ~{futuresMese} mes{futuresMese === 1 ? "e" : "i"}.
-                  </div>
-                  <div className="text-[10px] text-muted-foreground">Aggiornato: {fmtDate(impostazioni.futures_updated_at)}</div>
-                </>
-              )}
-              {futuresAttivo && !hasFutures && (
-                <div className="text-[11px] text-muted-foreground">Nessun futures configurato. Vai in Impostazioni per inserire i valori previsti.</div>
-              )}
-            </Card>
-
-            <Collapsible open={openNote} onOpenChange={setOpenNote}>
-              <Card className="p-4">
-                <CollapsibleTrigger className="flex items-center justify-between w-full">
-                  <span className="flex items-center gap-2 font-medium text-sm"><FileText className="w-4 h-4" />📝 Dati cliente (opzionale)</span>
-                  <ChevronDown className={cn("w-4 h-4 transition-transform", openNote && "rotate-180")} />
-                </CollapsibleTrigger>
-                <CollapsibleContent className="space-y-3 pt-3">
-                  <div className="grid sm:grid-cols-2 gap-3">
-                    <div><Label className="text-xs">Nome cliente</Label><Input value={note.nomeCliente} onChange={(e) => setNote({ ...note, nomeCliente: e.target.value })} /></div>
-                    <div><Label className="text-xs">Telefono</Label><Input value={note.telefono} onChange={(e) => setNote({ ...note, telefono: e.target.value })} /></div>
-                  </div>
-                  <div>
-                    <Label className="text-xs">Note</Label>
-                    <Textarea value={note.note} onChange={(e) => setNote({ ...note, note: e.target.value })}
-                      placeholder="es. Vuole pensarci, richiamare lunedì..." rows={3} />
-                  </div>
-                </CollapsibleContent>
-              </Card>
-            </Collapsible>
-          </div>
-          <div className="space-y-4">
-            {showResults && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between rounded-lg border bg-muted/40 px-3 py-2">
-                  <label htmlFor="toggle-presentazione" className="flex items-center gap-2 text-sm font-medium cursor-pointer select-none">
-                    <Eye className="w-4 h-4 text-muted-foreground" />
-                    Modalità presentazione
-                  </label>
-                  <Switch
-                    id="toggle-presentazione"
-                    checked={presentazione}
-                    onCheckedChange={setPresentazione}
-                  />
-                </div>
-                <div className="flex items-center justify-between rounded-lg border-2 border-primary/40 bg-primary/5 px-3 py-2">
-                  <label htmlFor="toggle-maxi" className="flex items-center gap-2 text-base font-semibold cursor-pointer select-none">
-                    <Phone className="w-5 h-5 text-primary" />
-                    📞 Modalità Maxi
-                  </label>
-                  <Switch
-                    id="toggle-maxi"
-                    checked={maxiMode}
-                    onCheckedChange={(v) => { setMaxiMode(v); if (v) datiSnapInit.current = datiSnap; }}
-                    className="data-[state=checked]:bg-primary"
-                  />
-                </div>
-                <div className="flex items-center justify-between rounded-lg border bg-muted/40 px-3 py-2">
-                  <label htmlFor="toggle-sg-energia" className="flex items-center gap-2 text-sm font-medium cursor-pointer select-none">
-                    <span className="text-xs font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded">SG</span>
-                    Includi SG Energia
-                  </label>
-                  <Switch
-                    id="toggle-sg-energia"
-                    checked={includeSgEnergia}
-                    onCheckedChange={setIncludeSgEnergia}
-                  />
-                </div>
-                <div className="flex items-center justify-between rounded-lg border bg-muted/40 px-3 py-2">
-                  <label htmlFor="toggle-provvigioni" className="flex items-center gap-2 text-sm font-medium cursor-pointer select-none">
-                    <span className="text-xs">💶</span>
-                    Mostra provvigioni
-                  </label>
-                  <Switch
-                    id="toggle-provvigioni"
-                    checked={showProvvigioni}
-                    onCheckedChange={setShowProvvigioni}
-                  />
-                </div>
-              </div>
-            )}
-            {showResults ? (
-              <>
-                <div className="inline-flex rounded-lg border bg-muted p-1 gap-1">
-                  {([
-                    { v: "entrambi" as const, l: "⚡ + 🔥 Entrambi" },
-                    { v: "luce" as const, l: "⚡ Solo luce" },
-                    { v: "gas" as const, l: "🔥 Solo gas" },
-                  ]).map((o) => (
-                    <button key={o.v} onClick={() => setFiltroTipo(o.v)}
-                      className={cn("px-3 py-1.5 text-sm rounded-md transition-colors",
-                        filtroTipo === o.v ? "bg-background text-foreground shadow-sm font-medium" : "text-muted-foreground hover:text-foreground")}>
-                      {o.l}
-                    </button>
-                  ))}
-                </div>
-                {presentazione && (
-                  <>
-                    <HeroRisparmio luce={lucePresentazione} gas={gasPresentazione} />
-                    <BeforeAfterBar luce={lucePresentazione} gas={gasPresentazione} />
-                  </>
-                )}
-                <ClassificaOfferte ctes={ctesFiltrate} dati={dati} imp={impEff} noteCliente={note} presentazione={presentazione} filtroTipo={filtroTipo} showProvvigioni={showProvvigioni} />
-              </>
-            ) : (
-              <div className="rounded-lg border-2 border-dashed p-8 text-center text-muted-foreground">
-                Compila i dati e premi <strong>Trova offerta migliore</strong> per vedere la classifica.
-              </div>
-            )}
-          </div>
+      {/* costi */}
+      <div className="grid grid-cols-2 gap-3 text-sm">
+        <div>
+          <div className="text-xs text-muted-foreground">Costo annuo stimato</div>
+          <div className="font-semibold text-base">{eur(r.costo_annuo_totale)}</div>
         </div>
+        {haSpesa && (
+          <div className={cn(
+            "rounded-lg px-3 py-2",
+            negativo ? "bg-red-100/60" : "bg-green-100/40",
+          )}>
+            <div className="text-xs text-muted-foreground">
+              {negativo ? "Costo in più" : "Risparmio annuo"}
+            </div>
+            <div className={cn("font-bold text-lg", negativo ? "text-red-700" : "text-green-700")}>
+              {negativo ? "−" : "+"}{eur(Math.abs(r.risparmio_annuo))}
+            </div>
+            {r.risparmio_percentuale !== 0 && (
+              <div className={cn("text-xs", negativo ? "text-red-600" : "text-green-600")}>
+                {negativo ? "−" : "+"}{Math.abs(r.risparmio_percentuale).toFixed(1)}% ·{" "}
+                {negativo ? "−" : "+"}{eur(Math.abs(r.risparmio_annuo) / 12)}/mese
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+// ─── Sezione classifica (luce o gas) ─────────────────────────────────────────
+
+function Sezione({
+  titolo,
+  icon,
+  risultati,
+  haSpesa,
+  bestRisparmio,
+}: {
+  titolo: string;
+  icon: React.ReactNode;
+  risultati: RisultatoOfferta[];
+  haSpesa: boolean;
+  bestRisparmio: number;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const visible = expanded ? risultati : risultati.slice(0, 3);
+  const extra = risultati.length - 3;
+
+  if (risultati.length === 0) {
+    return (
+      <div className="rounded-lg border-2 border-dashed p-6 text-center text-muted-foreground text-sm">
+        Nessuna offerta {titolo.toLowerCase()} attiva nel listino.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="font-semibold flex items-center gap-2 text-base">
+          {icon} Classifica {titolo}
+        </h3>
+        {haSpesa && bestRisparmio > 0 && (
+          <div className="text-right">
+            <div className="text-xs text-muted-foreground">Migliore risparmio</div>
+            <div className="text-xl font-bold text-green-600">{eur(bestRisparmio)}/anno</div>
+          </div>
+        )}
+      </div>
+      {!haSpesa && (
+        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+          Inserisci la spesa attuale per vedere il risparmio.
+        </p>
       )}
-      {maxiMode && showResults && (
-        <MaxiTrattativaPanel
-          luce={lucePresentazione}
-          gas={gasPresentazione}
-          dati={dati}
-          imp={impEff}
-          onClose={() => setMaxiMode(false)}
-        />
+      <div className="space-y-3">
+        {visible.map((r, i) => (
+          <RisultatoCard key={r.cte_id} r={r} idx={i} haSpesa={haSpesa} />
+        ))}
+      </div>
+      {extra > 0 && (
+        <Button variant="outline" size="sm" className="w-full min-h-[44px]" onClick={() => setExpanded((v) => !v)}>
+          {expanded ? "Mostra solo top 3" : `Vedi altre ${extra} offerte`}
+        </Button>
       )}
+    </div>
+  );
+}
+
+// ─── Componente principale ───────────────────────────────────────────────────
+
+export function AnalisiTab() {
+  // dati persistenti dal DB
+  const [zones, setZones] = useState<ZonaRow[]>([]);
+  const [rawCtes, setRawCtes] = useState<SupabaseCteRow[]>([]);
+  const [prezziMercato, setPrezziMercato] = useState<PrezzoMercato>({ pun_medio: 0.115, psv_medio: 0.42 });
+  const [parametriLuce, setParametriLuce] = useState<ParametriRegolati | null>(null);
+  const [parametriGas, setParametriGas] = useState<ParametriRegolati | null>(null);
+  const [loadingData, setLoadingData] = useState(true);
+  const [loadingZona, setLoadingZona] = useState(false);
+
+  // form agent
+  const [dati, setDati] = useState<DatiCliente>(DATI_DEFAULT);
+  const [regione, setRegione] = useState("");
+  const [potenzaCustom, setPotenzaCustom] = useState(false);
+
+  // risultati
+  const [showResults, setShowResults] = useState(false);
+  const [filtro, setFiltro] = useState<"entrambi" | "luce" | "gas">("entrambi");
+
+  const set = (patch: Partial<DatiCliente>) => {
+    setDati((d) => ({ ...d, ...patch }));
+    setShowResults(false);
+  };
+
+  // ── Caricamento iniziale: zone + CTE + prezzi mercato ────────────────────
+  useEffect(() => {
+    let mounted = true;
+    async function load() {
+      const [zonesRes, ctesRes, prezziRes] = await Promise.all([
+        supabase.from("zone_territoriali").select("*").order("regione"),
+        supabase
+          .from("cte")
+          .select("*, fornitori(nome, colore)")
+          .eq("attiva", true)
+          .order("priorita", { ascending: false }),
+        supabase
+          .from("mercato_prezzi")
+          .select("indice, valore")
+          .in("indice", ["PUN", "PSV"])
+          .order("data", { ascending: false })
+          .limit(60), // 30 gg × 2 indici
+      ]);
+      if (!mounted) return;
+
+      setZones((zonesRes.data ?? []) as ZonaRow[]);
+      setRawCtes((ctesRes.data ?? []) as unknown as SupabaseCteRow[]);
+
+      // media ultimi 30 gg
+      const rows = (prezziRes.data ?? []) as { indice: string; valore: number }[];
+      const pun = rows.filter((r) => r.indice === "PUN");
+      const psv = rows.filter((r) => r.indice === "PSV");
+      setPrezziMercato({
+        pun_medio: pun.length ? pun.reduce((s, r) => s + r.valore, 0) / pun.length : 0.115,
+        psv_medio: psv.length ? psv.reduce((s, r) => s + r.valore, 0) / psv.length : 0.42,
+      });
+
+      setLoadingData(false);
+    }
+    load();
+    return () => { mounted = false; };
+  }, []);
+
+  // ── Caricamento parametri ARERA quando cambia regione ────────────────────
+  useEffect(() => {
+    if (!regione || zones.length === 0) return;
+    const zona = zones.find((z) => z.regione === regione);
+    if (!zona) return;
+
+    let mounted = true;
+    setLoadingZona(true);
+
+    async function loadParametri() {
+      if (!zona) return;
+      const oggi = new Date().toISOString().slice(0, 10);
+      const [luceRes, gasRes] = await Promise.all([
+        supabase
+          .from("parametri_regolati")
+          .select("valori")
+          .eq("tipo_fornitura", "luce")
+          .eq("ambito", zona.zona_elettrica)
+          .lte("periodo_da", oggi)
+          .gte("periodo_a", oggi)
+          .order("periodo_da", { ascending: false })
+          .limit(1),
+        zona.ambito_gas
+          ? supabase
+              .from("parametri_regolati")
+              .select("valori")
+              .eq("tipo_fornitura", "gas")
+              .eq("ambito", zona.ambito_gas)
+              .lte("periodo_da", oggi)
+              .gte("periodo_a", oggi)
+              .order("periodo_da", { ascending: false })
+              .limit(1)
+          : Promise.resolve({ data: [] as { valori: unknown }[] }),
+      ]);
+      if (!mounted) return;
+
+      const plRaw = (luceRes.data?.[0]?.valori ?? null) as ParametriRegolati | null;
+      const pgRaw = ((gasRes as { data: { valori: unknown }[] | null }).data?.[0]?.valori ?? null) as ParametriRegolati | null;
+
+      // fallback se i parametri ARERA non sono ancora popolati per questa zona
+      setParametriLuce(
+        plRaw ?? { trasporto_gestione: 0.015, oneri_sistema: 0.020, accise: 0.0227, iva: 0.10 },
+      );
+      setParametriGas(
+        zona.ambito_gas
+          ? (pgRaw ?? { trasporto_gestione: 0, oneri_sistema: 0, trasporto: 0.09, oneri: 0.04, accise: 0.044, iva: 0.10 })
+          : null,
+      );
+
+      // aggiorna dati cliente con zona
+      setDati((d) => ({
+        ...d,
+        zona_arera: zona.zona_elettrica,
+        ambito_gas: zona.ambito_gas ?? undefined,
+      }));
+      setLoadingZona(false);
+    }
+
+    loadParametri();
+    return () => { mounted = false; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [regione, zones]);
+
+  // ── Calcolo risultati ─────────────────────────────────────────────────────
+  const ctes = useMemo(() => rawCtes.map(adaptCte), [rawCtes]);
+
+  const risultatiLuce = useMemo(() => {
+    if (!showResults || !parametriLuce || !dati.consumo_annuo_kwh) return [];
+    return calcolaConfrontoOfferte(
+      { ...dati, spesa_annua_gas: 0 },
+      ctes.filter((c) => c.tipo_fornitura === "luce"),
+      parametriLuce,
+      null,
+      prezziMercato,
+    );
+  }, [showResults, parametriLuce, dati, ctes, prezziMercato]);
+
+  const risultatiGas = useMemo(() => {
+    if (!showResults || !parametriGas || !dati.consumo_annuo_smc) return [];
+    return calcolaConfrontoOfferte(
+      { ...dati, spesa_annua_luce: 0 },
+      ctes.filter((c) => c.tipo_fornitura === "gas"),
+      null,
+      parametriGas,
+      prezziMercato,
+    );
+  }, [showResults, parametriGas, dati, ctes, prezziMercato]);
+
+  if (loadingData) {
+    return (
+      <div className="container mx-auto px-3 sm:px-4 py-6">
+        <Skeleton className="h-96" />
+      </div>
+    );
+  }
+
+  const isBusiness = dati.tipo_cliente === "business";
+  const potenze = isBusiness ? POTENZE_BUS : POTENZE_DOM;
+  const canCalcola = !!regione && !loadingZona && (!!dati.consumo_annuo_kwh || !!dati.consumo_annuo_smc);
+
+  const haSpesaLuce = (dati.spesa_annua_luce ?? 0) > 0;
+  const haSpesaGas = (dati.spesa_annua_gas ?? 0) > 0;
+
+  const zonaInfo = zones.find((z) => z.regione === regione);
+
+  return (
+    <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 max-w-full overflow-x-hidden">
+      <div className="grid lg:grid-cols-2 gap-6">
+
+        {/* ── FORM ─────────────────────────────────────────────── */}
+        <Card className="p-5 sm:p-6 space-y-6">
+          <div className="flex items-center gap-2">
+            <Search className="w-5 h-5 text-primary" />
+            <h2 className="text-lg font-semibold">Dati cliente</h2>
+          </div>
+
+          {/* Tipo cliente */}
+          <div className="space-y-2">
+            <Label>Tipo cliente</Label>
+            <Chip<TipoCliente>
+              options={TIPO_CLIENTI}
+              value={dati.tipo_cliente}
+              onChange={(v) => set({ tipo_cliente: v, potenza_impegnata_kw: v === "business" ? 6 : 3 })}
+            />
+          </div>
+
+          {/* Zona ARERA */}
+          <div className="space-y-2">
+            <Label className="flex items-center gap-1.5">
+              <MapPin className="w-3.5 h-3.5" /> Zona ARERA — regione cliente
+            </Label>
+            <select
+              value={regione}
+              onChange={(e) => { setRegione(e.target.value); setShowResults(false); }}
+              className="w-full h-11 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            >
+              <option value="">— Seleziona regione —</option>
+              {zones.map((z) => (
+                <option key={z.id} value={z.regione}>
+                  {z.regione} · {z.zona_elettrica}{z.ambito_gas ? ` / ${z.ambito_gas}` : " (no gas)"}
+                </option>
+              ))}
+            </select>
+            {zonaInfo && (
+              <div className="text-[11px] text-muted-foreground">
+                PUN ref.: {(prezziMercato.pun_medio * 100).toFixed(2)} c€/kWh ·
+                PSV ref.: {prezziMercato.psv_medio.toFixed(3)} €/Smc (media 30 gg)
+              </div>
+            )}
+          </div>
+
+          {/* Potenza */}
+          <div className="space-y-2">
+            <Label>Potenza impegnata (kW)</Label>
+            <div className="flex flex-wrap items-center gap-2">
+              {potenze.map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => { set({ potenza_impegnata_kw: p }); setPotenzaCustom(false); }}
+                  className={cn(
+                    "px-3 py-2 min-h-[44px] text-sm rounded-md border cursor-pointer transition-colors",
+                    !potenzaCustom && dati.potenza_impegnata_kw === p
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-background hover:bg-muted",
+                  )}
+                >
+                  {p}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => setPotenzaCustom(true)}
+                className={cn(
+                  "px-3 py-2 min-h-[44px] text-sm rounded-md border cursor-pointer transition-colors",
+                  potenzaCustom ? "bg-primary text-primary-foreground border-primary" : "bg-background hover:bg-muted",
+                )}
+              >
+                Altro
+              </button>
+              {potenzaCustom && (
+                <Input
+                  type="number"
+                  step="0.5"
+                  value={dati.potenza_impegnata_kw ?? ""}
+                  onChange={(e) => set({ potenza_impegnata_kw: parseFloat(e.target.value) || 0 })}
+                  className="w-24 h-11"
+                />
+              )}
+            </div>
+          </div>
+
+          {/* Luce */}
+          <div className="rounded-lg border border-yellow-200 bg-yellow-50/50 p-4 space-y-4">
+            <div className="flex items-center gap-2">
+              <Zap className="w-5 h-5 text-yellow-500" />
+              <h3 className="font-semibold">Energia elettrica</h3>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Consumo annuo (kWh)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step={100}
+                  value={dati.consumo_annuo_kwh ?? ""}
+                  onChange={(e) => set({ consumo_annuo_kwh: parseInt(e.target.value) || 0 })}
+                  className="h-11"
+                  placeholder="es. 2700"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Spesa attuale (€/anno)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step={10}
+                  value={dati.spesa_annua_luce ?? ""}
+                  onChange={(e) => set({ spesa_annua_luce: parseFloat(e.target.value) || undefined })}
+                  className="h-11"
+                  placeholder="es. 800"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Gas */}
+          <div className="rounded-lg border border-orange-200 bg-orange-50/50 p-4 space-y-4">
+            <div className="flex items-center gap-2">
+              <Flame className="w-5 h-5 text-orange-500" />
+              <h3 className="font-semibold">Gas naturale</h3>
+              {!zonaInfo?.ambito_gas && (
+                <span className="text-xs text-muted-foreground">(non disponibile in Sardegna)</span>
+              )}
+            </div>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Consumo annuo (Smc)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step={50}
+                  value={dati.consumo_annuo_smc ?? ""}
+                  onChange={(e) => set({ consumo_annuo_smc: parseInt(e.target.value) || 0 })}
+                  className="h-11"
+                  placeholder="es. 1200"
+                  disabled={!zonaInfo?.ambito_gas && !!regione}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Spesa attuale (€/anno)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step={10}
+                  value={dati.spesa_annua_gas ?? ""}
+                  onChange={(e) => set({ spesa_annua_gas: parseFloat(e.target.value) || undefined })}
+                  className="h-11"
+                  placeholder="es. 1000"
+                  disabled={!zonaInfo?.ambito_gas && !!regione}
+                />
+              </div>
+            </div>
+            {zonaInfo?.ambito_gas && (
+              <div className="space-y-1.5">
+                <Label className="text-xs">Uso gas</Label>
+                <Chip<UsoGas>
+                  options={USI_GAS}
+                  value={dati.uso_gas ?? "riscaldamento"}
+                  onChange={(v) => set({ uso_gas: v })}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* CTA */}
+          {!regione && (
+            <p className="text-sm text-amber-700 bg-amber-50 rounded-md px-3 py-2 border border-amber-200">
+              Seleziona la regione per abilitare il calcolo.
+            </p>
+          )}
+          <Button
+            size="lg"
+            className="w-full min-h-[48px] bg-green-600 hover:bg-green-700 text-white text-base font-semibold"
+            disabled={!canCalcola}
+            onClick={() => setShowResults(true)}
+          >
+            <Search className="w-5 h-5 mr-2" />
+            {loadingZona ? "Caricamento parametri…" : "Trova offerta migliore"}
+          </Button>
+        </Card>
+
+        {/* ── RISULTATI ────────────────────────────────────────── */}
+        <div className="space-y-4">
+          {showResults ? (
+            <>
+              {/* toggle luce / gas / entrambi */}
+              <div className="inline-flex rounded-lg border bg-muted p-1 gap-1">
+                {(
+                  [
+                    { v: "entrambi" as const, l: "⚡ + 🔥 Entrambi" },
+                    { v: "luce" as const, l: "⚡ Luce" },
+                    { v: "gas" as const, l: "🔥 Gas" },
+                  ] as const
+                ).map((o) => (
+                  <button
+                    key={o.v}
+                    onClick={() => setFiltro(o.v)}
+                    className={cn(
+                      "px-3 py-1.5 min-h-[36px] text-sm rounded-md transition-colors",
+                      filtro === o.v
+                        ? "bg-background text-foreground shadow-sm font-medium"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {o.l}
+                  </button>
+                ))}
+              </div>
+
+              {filtro !== "gas" && (
+                <Sezione
+                  titolo="Luce"
+                  icon={<Zap className="w-4 h-4 text-yellow-500" />}
+                  risultati={risultatiLuce}
+                  haSpesa={haSpesaLuce}
+                  bestRisparmio={risultatiLuce[0]?.risparmio_annuo ?? 0}
+                />
+              )}
+              {filtro !== "luce" && (
+                <Sezione
+                  titolo="Gas"
+                  icon={<Flame className="w-4 h-4 text-orange-500" />}
+                  risultati={risultatiGas}
+                  haSpesa={haSpesaGas}
+                  bestRisparmio={risultatiGas[0]?.risparmio_annuo ?? 0}
+                />
+              )}
+            </>
+          ) : (
+            <div className="rounded-lg border-2 border-dashed p-12 text-center text-muted-foreground space-y-3">
+              <div className="text-4xl opacity-20">⚡🔥</div>
+              <p className="text-sm">
+                Compila i dati e premi <strong>Trova offerta migliore</strong>{" "}
+                per vedere la classifica offerte.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

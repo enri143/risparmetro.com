@@ -6,7 +6,7 @@ import { Upload, FileText, X, Bot, Save, Loader2 } from "lucide-react";
 import { fileToBase64, type CTEEstratta } from "@/lib/board/claude";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { BOARD_PWD_KEY } from "@/pages/BoardLogin";
+
 
 type Stato = "idle" | "analizzando" | "ok" | "errore";
 interface Estratto { dati: CTEEstratta; conferma: boolean; }
@@ -26,8 +26,8 @@ export function UploadPdfFlow({ open, onClose, onSaved }: { open: boolean; onClo
   const rimuovi = (i: number) => setRighe((r) => r.filter((_, idx) => idx !== i));
 
   const analizzaTutti = async () => {
-    const password = sessionStorage.getItem(BOARD_PWD_KEY) ?? "";
-    if (!password) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
       toast.error("Sessione scaduta — effettua di nuovo il login");
       return;
     }
@@ -36,7 +36,7 @@ export function UploadPdfFlow({ open, onClose, onSaved }: { open: boolean; onClo
       if (righe[i].stato === "ok") continue;
       try {
         const b64 = await fileToBase64(righe[i].file);
-        const { data, error } = await supabase.functions.invoke("analyze-cte", { body: { password, pdfBase64: b64 } });
+        const { data, error } = await supabase.functions.invoke("analyze-cte", { body: { pdfBase64: b64 } });
         if (error) throw error;
         if (data?.error) throw new Error(data.error);
         const lista = (data?.items ?? []) as CTEEstratta[];
