@@ -4,14 +4,18 @@ import {
   ChevronDown,
   Eye,
   Flame,
+  Maximize2,
   Save,
   Search,
   ShieldCheck,
   ShieldOff,
+  TrendingUp,
   Zap,
 } from "lucide-react";
 import { ConfrontoDettagliatoView } from "./ConfrontoDettagliatoView";
+import { MaxiTrattativaPanel } from "./analisi/MaxiTrattativaPanel";
 import { PresentazioneView } from "./PresentazioneView";
+import { TrattativaView } from "./TrattativaView";
 import { UploadBollettaButton, type OcrDoneResult } from "./analisi/UploadBollettaButton";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
@@ -331,6 +335,8 @@ export function AnalisiCockpit() {
   const [showDettagliato, setShowDettagliato] = useState(false);
   const [clientMode, setClientMode] = useState(false);
   const [selectedCteId, setSelectedCteId] = useState<string | null>(null);
+  const [showMaxi, setShowMaxi] = useState(false);
+  const [trattativaOfferta, setTrattativaOfferta] = useState<RisultatoOfferta | null>(null);
   const [savingSimulazione, setSavingSimulazione] = useState(false);
   const [saveOk, setSaveOk] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -629,6 +635,23 @@ export function AnalisiCockpit() {
   // ── Render ────────────────────────────────────────────────────────────────────
   return (
     <div className="mx-auto px-4 sm:px-6 py-5 max-w-screen-xl">
+      {showMaxi && showResults && (
+        <MaxiTrattativaPanel
+          luce={risultatiLuce}
+          gas={risultatiGas}
+          onClose={() => setShowMaxi(false)}
+        />
+      )}
+      {trattativaOfferta && (
+        <TrattativaView
+          offerta={trattativaOfferta}
+          risultatiLuce={risultatiLuce}
+          risultatiGas={risultatiGas}
+          spesaAnnuaLuce={spesaAnnuaLuce}
+          spesaAnnuaGas={spesaAnnuaGas}
+          onClose={() => setTrattativaOfferta(null)}
+        />
+      )}
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-text-base">Analisi Fornitura</h1>
@@ -663,6 +686,14 @@ export function AnalisiCockpit() {
             >
               <Eye className="w-4 h-4" />
               {presentationMode ? "Modalità Presentazione" : "Presentazione"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowMaxi(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-full border border-border-ui bg-white text-text-base text-sm font-medium hover:bg-surface-subtle transition-all min-h-[44px]"
+            >
+              <Maximize2 className="w-4 h-4" />
+              Maxi
             </button>
           </div>
         )}
@@ -1066,7 +1097,21 @@ export function AnalisiCockpit() {
                     </>
                   )}
                 </button>
-                {/* TODO: PDF brandizzato — edge function genera-pdf */}
+                {selectedCteId && (() => {
+                  const off =
+                    risultatiLuce.find((r) => r.cte_id === selectedCteId) ??
+                    risultatiGas.find((r) => r.cte_id === selectedCteId);
+                  return off ? (
+                    <button
+                      type="button"
+                      onClick={() => setTrattativaOfferta(off)}
+                      className="flex items-center gap-2 h-10 px-4 rounded-xl border border-brand text-sm font-semibold text-brand hover:bg-brand-subtle transition-all min-h-[44px]"
+                    >
+                      <TrendingUp className="w-4 h-4" />
+                      Trattativa
+                    </button>
+                  ) : null;
+                })()}
                 {saveError && <p className="text-xs text-spend">{saveError}</p>}
               </div>
 
