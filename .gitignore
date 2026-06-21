@@ -25,3 +25,11 @@ dist-ssr
 .env
 .env.local
 supabase/.temp/
+
+# Claude Code
+.claude/
+.agents/
+skills-lock.json
+
+# TypeScript build cache
+tsconfig.app.tsbuildinfo
