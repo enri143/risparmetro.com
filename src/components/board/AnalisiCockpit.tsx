@@ -444,36 +444,24 @@ export function AnalisiCockpit() {
     async function loadParametri() {
       if (!zona) return;
       const oggi = new Date().toISOString().slice(0, 10);
-      const [luceRes, gasRes] = await Promise.all([
-        supabase
-          .from("parametri_regolati")
-          .select("valori")
-          .eq("tipo_fornitura", "luce")
-          .eq("ambito", zona.zona_elettrica)
-          .lte("periodo_da", oggi)
-          .gte("periodo_a", oggi)
-          .order("periodo_da", { ascending: false })
-          .limit(1),
-        zona.ambito_gas
-          ? supabase
-              .from("parametri_regolati")
-              .select("valori")
-              .eq("tipo_fornitura", "gas")
-              .eq("ambito", zona.ambito_gas)
-              .lte("periodo_da", oggi)
-              .gte("periodo_a", oggi)
-              .order("periodo_da", { ascending: false })
-              .limit(1)
-          : Promise.resolve({ data: [] as { valori: unknown }[] }),
-      ]);
+      // Luce: parametri da componenti_regolate (areraLuce ha priorità), query parametri_regolati rimossa.
+      const gasRes = await (zona.ambito_gas
+        ? supabase
+            .from("parametri_regolati")
+            .select("valori")
+            .eq("tipo_fornitura", "gas")
+            .eq("ambito", zona.ambito_gas)
+            .lte("periodo_da", oggi)
+            .gte("periodo_a", oggi)
+            .order("periodo_da", { ascending: false })
+            .limit(1)
+        : Promise.resolve({ data: [] as { valori: unknown }[] }));
       if (!mounted) return;
 
-      const plRaw = (luceRes.data?.[0]?.valori ?? null) as ParametriRegolati | null;
       const pgRaw = (
         (gasRes as { data: { valori: unknown }[] | null }).data?.[0]?.valori ?? null
       ) as ParametriRegolati | null;
 
-      setParametriLuce(plRaw ?? FALLBACK_LUCE);
       setParametriGas(zona.ambito_gas ? (pgRaw ?? FALLBACK_GAS) : null);
 
       setDati((d) => ({
