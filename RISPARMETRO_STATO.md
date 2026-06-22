@@ -46,7 +46,7 @@ Legenda: ✅ fatto · ⏳ da fare · 🟡 parziale · ⏸️ in attesa esterna �
 ### Blocco D — Hardening
 - **D15** ⏳ 🔴 Security audit RLS (il test `rls.cross-tenant.test.ts` ha 3 `it.skip` placeholder → da implementare qui)
 - **D16** ⏳ Osservabilità (Sentry)
-- **D17** 🟡 Dead-code: **isola Motore B fatta**. RESTA: `AnalisiTab.tsx` (orfano), `FiltriRapidiChips.tsx` (orfano — zero import in tutto il progetto), warning "Multiple GoTrueClient instances"
+- **D17** 🟡 Dead-code: **isola Motore B fatta** · **`AnalisiTab.tsx` rimosso** · **`FiltriRapidiChips.tsx` rimosso**. RESTA: warning "Multiple GoTrueClient instances" (in attesa decisione chiave env)
 - **D18** ⏳ QA tablet iPad reale
 
 ### Blocco GAS / E
@@ -62,7 +62,8 @@ Legenda: ✅ fatto · ⏳ da fare · 🟡 parziale · ⏸️ in attesa esterna �
 | 1 | A2 — `calcoloOfferte.golden.test.ts` riscritto su Motore A, 6 casi (fisso/indicizzato luce+gas, dual, ordinamento, gate-guard) | (golden rewrite) | verde |
 | 2 | Eliminata isola Motore B: `calcoli.ts` + `ClassificaOfferte.tsx` + `Proiezione12Mesi.tsx` + `ConfrontoModal.tsx` | `8c373b5` | −906 righe, build OK, 28/3/0 |
 | 3 | B6 — toggle `showProvvigioni` (AnalisiCockpit + ConfrontoDettagliatoView + leak-test esteso) | `910513e` | build OK, 29/3/0 |
-| 4 | B7 — Proiezione 12 mesi da zero su Motore A (`proiezione.ts` + `Proiezione12Mesi.tsx` Recharts + mount in AnalisiCockpit) | (questo commit) | build OK, 33/3/0 |
+| 4 | B7 — Proiezione 12 mesi da zero su Motore A (`proiezione.ts` + `Proiezione12Mesi.tsx` Recharts + mount in AnalisiCockpit) | `10f9382` | build OK, 33/3/0 |
+| 5 | D17 — rimossi `AnalisiTab.tsx` + `FiltriRapidiChips.tsx` orfani (guard grep vuoto) | (questo commit) | build OK, 33/3/0 |
 
 ---
 
