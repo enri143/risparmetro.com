@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+
+# ── File-lock: protegge file frozen ─────────────────────────────────────────
+STAGED=$(git diff --cached --name-only)
+
+for pattern in \
+  "src/lib/board/calcoloOfferte.ts" \
+  "src/lib/board/calcoloOfferte.golden.test.ts" \
+  "src/lib/board/calcoloOfferte.test.ts"
+do
+  if echo "$STAGED" | grep -qF "$pattern"; then
+    echo ""
+    echo "🚫  COMMIT BLOCCATO — file frozen in staging:"
+    echo "    $pattern"
+    echo "    Rimuovi dal staging oppure chiedi prima di modificare file frozen."
+    echo ""
+    exit 1
+  fi
+done
+
+# Check per migration esistenti (additive only — no edit di file già in HEAD)
+while IFS= read -r file; do
+  case "$file" in supabase/migrations/*)
+    if git show HEAD:"$file" > /dev/null 2>&1; then
+      echo ""
+      echo "🚫  COMMIT BLOCCATO — migration esistente modificata:"
+      echo "    $file"
+      echo "    Le migration sono additive: crea un nuovo file con timestamp."
+      echo ""
+      exit 1
+    fi
+  esac
+done <<< "$STAGED"
+
+# ── Test suite ───────────────────────────────────────────────────────────────
+echo "▶  npm run test..."
+npm run test
+STATUS=$?
+if [ $STATUS -ne 0 ]; then
+  echo ""
+  echo "🚫  COMMIT BLOCCATO — test falliti. Correggi prima di committare."
+  echo ""
+  exit 1
+fi
+
+exit 0
