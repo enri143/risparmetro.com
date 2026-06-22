@@ -372,11 +372,17 @@ export function AnalisiTab() {
 
       // fallback se i parametri ARERA non sono ancora popolati per questa zona
       setParametriLuce(
-        plRaw ?? { trasporto_gestione: 0.015, oneri_sistema: 0.020, accise: 0.0227, iva: 0.10 },
+        plRaw ?? {
+          sigma1_mese: 1.90, sigma2_kw_mese: 2.106, sigma3_uc3_kwh: 0.01057,
+          oneri_luce_fisso_mese: 0.50, oneri_luce_var_kwh: 0.0350,
+          accise_luce_dom: 0.0227, accise_luce_bus: 0.0125, soglia_esenzione_kwh_mese: 150,
+          iva_dom: 0.10, iva_bus: 0.22, perdite_rete: 1.10, cdispd_anno: 1.23, canone_rai_anno: 90,
+          accise: 0.0227, iva: 0.10,
+        },
       );
       setParametriGas(
         zona.ambito_gas
-          ? (pgRaw ?? { trasporto_gestione: 0, oneri_sistema: 0, trasporto: 0.09, oneri: 0.04, accise: 0.044, iva: 0.10 })
+          ? (pgRaw ?? { trasporto: 0.09, oneri: 0.04, accise: 0.044, iva: 0.10 })
           : null,
       );
 
@@ -400,7 +406,7 @@ export function AnalisiTab() {
   const risultatiLuce = useMemo(() => {
     if (!showResults || !parametriLuce || !dati.consumo_annuo_kwh) return [];
     return calcolaConfrontoOfferte(
-      { ...dati, spesa_annua_gas: 0 },
+      { ...dati, prezzo_materia_gas: 0, quota_fissa_gas_mese: 0 },
       ctes.filter((c) => c.tipo_fornitura === "luce"),
       parametriLuce,
       null,
@@ -411,7 +417,7 @@ export function AnalisiTab() {
   const risultatiGas = useMemo(() => {
     if (!showResults || !parametriGas || !dati.consumo_annuo_smc) return [];
     return calcolaConfrontoOfferte(
-      { ...dati, spesa_annua_luce: 0 },
+      { ...dati, prezzo_materia_luce: 0, quota_fissa_luce_mese: 0 },
       ctes.filter((c) => c.tipo_fornitura === "gas"),
       null,
       parametriGas,
@@ -429,10 +435,15 @@ export function AnalisiTab() {
 
   const isBusiness = dati.tipo_cliente === "business";
   const potenze = isBusiness ? POTENZE_BUS : POTENZE_DOM;
-  const canCalcola = !!regione && !loadingZona && (!!dati.consumo_annuo_kwh || !!dati.consumo_annuo_smc);
 
-  const haSpesaLuce = (dati.spesa_annua_luce ?? 0) > 0;
-  const haSpesaGas = (dati.spesa_annua_gas ?? 0) > 0;
+  const haDatiAttualiLuce = (dati.prezzo_materia_luce ?? 0) > 0 && (dati.quota_fissa_luce_mese ?? 0) >= 0;
+  const haDatiAttualiGas  = (dati.prezzo_materia_gas  ?? 0) > 0 && (dati.quota_fissa_gas_mese  ?? 0) >= 0;
+
+  const canCalcola = !!regione && !loadingZona
+    && ((!!dati.consumo_annuo_kwh && haDatiAttualiLuce) || (!!dati.consumo_annuo_smc && haDatiAttualiGas));
+
+  const mancaDatiAttuali = !!regione && !loadingZona
+    && ((!!dati.consumo_annuo_kwh && !haDatiAttualiLuce) || (!!dati.consumo_annuo_smc && !haDatiAttualiGas));
 
   const zonaInfo = zones.find((z) => z.regione === regione);
 
@@ -529,29 +540,41 @@ export function AnalisiTab() {
               <Zap className="w-5 h-5 text-yellow-500" />
               <h3 className="font-semibold">Energia elettrica</h3>
             </div>
-            <div className="grid sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Consumo annuo (kWh)</Label>
+              <Input
+                type="number"
+                min={0}
+                step={100}
+                value={dati.consumo_annuo_kwh ?? ""}
+                onChange={(e) => set({ consumo_annuo_kwh: parseInt(e.target.value) || 0 })}
+                className="h-11"
+                placeholder="es. 2700"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1.5">
-                <Label className="text-xs">Consumo annuo (kWh)</Label>
+                <Label className="text-xs">Prezzo materia (€/kWh)</Label>
                 <Input
                   type="number"
                   min={0}
-                  step={100}
-                  value={dati.consumo_annuo_kwh ?? ""}
-                  onChange={(e) => set({ consumo_annuo_kwh: parseInt(e.target.value) || 0 })}
+                  step={0.0001}
+                  value={dati.prezzo_materia_luce ?? ""}
+                  onChange={(e) => set({ prezzo_materia_luce: parseFloat(e.target.value) || undefined })}
                   className="h-11"
-                  placeholder="es. 2700"
+                  placeholder="es. 0.1250"
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">Spesa attuale (€/anno)</Label>
+                <Label className="text-xs">Quota fissa (€/mese)</Label>
                 <Input
                   type="number"
                   min={0}
-                  step={10}
-                  value={dati.spesa_annua_luce ?? ""}
-                  onChange={(e) => set({ spesa_annua_luce: parseFloat(e.target.value) || undefined })}
+                  step={0.01}
+                  value={dati.quota_fissa_luce_mese ?? ""}
+                  onChange={(e) => set({ quota_fissa_luce_mese: parseFloat(e.target.value) || undefined })}
                   className="h-11"
-                  placeholder="es. 800"
+                  placeholder="es. 14.50"
                 />
               </div>
             </div>
@@ -566,30 +589,43 @@ export function AnalisiTab() {
                 <span className="text-xs text-muted-foreground">(non disponibile in Sardegna)</span>
               )}
             </div>
-            <div className="grid sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Consumo annuo (Smc)</Label>
+              <Input
+                type="number"
+                min={0}
+                step={50}
+                value={dati.consumo_annuo_smc ?? ""}
+                onChange={(e) => set({ consumo_annuo_smc: parseInt(e.target.value) || 0 })}
+                className="h-11"
+                placeholder="es. 1200"
+                disabled={!zonaInfo?.ambito_gas && !!regione}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1.5">
-                <Label className="text-xs">Consumo annuo (Smc)</Label>
+                <Label className="text-xs">Prezzo materia (€/Smc)</Label>
                 <Input
                   type="number"
                   min={0}
-                  step={50}
-                  value={dati.consumo_annuo_smc ?? ""}
-                  onChange={(e) => set({ consumo_annuo_smc: parseInt(e.target.value) || 0 })}
+                  step={0.001}
+                  value={dati.prezzo_materia_gas ?? ""}
+                  onChange={(e) => set({ prezzo_materia_gas: parseFloat(e.target.value) || undefined })}
                   className="h-11"
-                  placeholder="es. 1200"
+                  placeholder="es. 0.420"
                   disabled={!zonaInfo?.ambito_gas && !!regione}
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">Spesa attuale (€/anno)</Label>
+                <Label className="text-xs">Quota fissa (€/mese)</Label>
                 <Input
                   type="number"
                   min={0}
-                  step={10}
-                  value={dati.spesa_annua_gas ?? ""}
-                  onChange={(e) => set({ spesa_annua_gas: parseFloat(e.target.value) || undefined })}
+                  step={0.01}
+                  value={dati.quota_fissa_gas_mese ?? ""}
+                  onChange={(e) => set({ quota_fissa_gas_mese: parseFloat(e.target.value) || undefined })}
                   className="h-11"
-                  placeholder="es. 1000"
+                  placeholder="es. 12.00"
                   disabled={!zonaInfo?.ambito_gas && !!regione}
                 />
               </div>
@@ -621,6 +657,11 @@ export function AnalisiTab() {
             <Search className="w-5 h-5 mr-2" />
             {loadingZona ? "Caricamento parametri…" : "Trova offerta migliore"}
           </Button>
+          {mancaDatiAttuali && (
+            <p className="text-sm text-red-700 bg-red-50 rounded-md px-3 py-2 border border-red-200">
+              Servono prezzo materia e quota fissa dell&apos;offerta attuale del cliente per calcolare il risparmio reale. Senza, niente confronto.
+            </p>
+          )}
         </Card>
 
         {/* ── RISULTATI ────────────────────────────────────────── */}
@@ -656,7 +697,7 @@ export function AnalisiTab() {
                   titolo="Luce"
                   icon={<Zap className="w-4 h-4 text-yellow-500" />}
                   risultati={risultatiLuce}
-                  haSpesa={haSpesaLuce}
+                  haSpesa={haDatiAttualiLuce}
                   bestRisparmio={risultatiLuce[0]?.risparmio_annuo ?? 0}
                 />
               )}
@@ -665,7 +706,7 @@ export function AnalisiTab() {
                   titolo="Gas"
                   icon={<Flame className="w-4 h-4 text-orange-500" />}
                   risultati={risultatiGas}
-                  haSpesa={haSpesaGas}
+                  haSpesa={haDatiAttualiGas}
                   bestRisparmio={risultatiGas[0]?.risparmio_annuo ?? 0}
                 />
               )}

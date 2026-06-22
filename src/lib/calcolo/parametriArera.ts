@@ -22,10 +22,13 @@ export async function fetchParametriAreraLuce(
 
   const [luceRes, mercatoRes] = await Promise.all([
     supabase
-      .from("componenti_regolate")
-      .select("trasporto_gestione, oneri_sistema, accisa_aliquota, iva")
-      .eq("tipo", "luce")
-      .is("zona", null)
+      .from("componenti_regolate_luce")
+      .select(
+        "sigma1_mese, sigma2_kw_mese, sigma3_uc3_kwh, " +
+        "oneri_luce_fisso_mese, oneri_luce_var_kwh, oneri_asos_fisso_nonres, " +
+        "accise_luce_dom, accise_luce_bus, soglia_esenzione_kwh_mese, " +
+        "iva_dom, iva_bus, perdite_rete, cdispd_anno, canone_rai_anno"
+      )
       .lte("validita_da", dataStr)
       .gte("validita_a", dataStr)
       .order("validita_da", { ascending: false })
@@ -45,7 +48,7 @@ export async function fetchParametriAreraLuce(
 
   if (luceRes.error || !luceRes.data) {
     throw new Error(
-      `Nessun parametro luce valido per ${dataStr} in componenti_regolate: ${
+      `Nessun parametro luce valido per ${dataStr} in componenti_regolate_luce: ${
         luceRes.error?.message ?? "riga mancante"
       }`,
     )
@@ -58,11 +61,21 @@ export async function fetchParametriAreraLuce(
     )
   }
 
-  const l = luceRes.data as {
-    trasporto_gestione: number | string
-    oneri_sistema: number | string
-    accisa_aliquota: number | string
-    iva: number | string
+  const l = luceRes.data as unknown as {
+    sigma1_mese: number | string
+    sigma2_kw_mese: number | string
+    sigma3_uc3_kwh: number | string
+    oneri_luce_fisso_mese: number | string
+    oneri_luce_var_kwh: number | string
+    oneri_asos_fisso_nonres: number | string | null
+    accise_luce_dom: number | string
+    accise_luce_bus: number | string
+    soglia_esenzione_kwh_mese: number | string
+    iva_dom: number | string
+    iva_bus: number | string
+    perdite_rete: number | string
+    cdispd_anno: number | string
+    canone_rai_anno: number | string
   }
   const m = mercatoRes.data as {
     pun_mensile: number | string
@@ -71,10 +84,22 @@ export async function fetchParametriAreraLuce(
 
   return {
     parametriLuce: {
-      trasporto_gestione: Number(l.trasporto_gestione),
-      oneri_sistema: Number(l.oneri_sistema),
-      accise: Number(l.accisa_aliquota),
-      iva: Number(l.iva),
+      sigma1_mese:               Number(l.sigma1_mese),
+      sigma2_kw_mese:            Number(l.sigma2_kw_mese),
+      sigma3_uc3_kwh:            Number(l.sigma3_uc3_kwh),
+      oneri_luce_fisso_mese:     Number(l.oneri_luce_fisso_mese),
+      oneri_luce_var_kwh:        Number(l.oneri_luce_var_kwh),
+      oneri_asos_fisso_nonres:   l.oneri_asos_fisso_nonres != null ? Number(l.oneri_asos_fisso_nonres) : undefined,
+      accise_luce_dom:           Number(l.accise_luce_dom),
+      accise_luce_bus:           Number(l.accise_luce_bus),
+      soglia_esenzione_kwh_mese: Number(l.soglia_esenzione_kwh_mese),
+      iva_dom:                   Number(l.iva_dom),
+      iva_bus:                   Number(l.iva_bus),
+      perdite_rete:              Number(l.perdite_rete),
+      cdispd_anno:               Number(l.cdispd_anno),
+      canone_rai_anno:           Number(l.canone_rai_anno),
+      accise:                    0,
+      iva:                       0,
     },
     prezziMercato: {
       pun_medio: Number(m.pun_mensile),

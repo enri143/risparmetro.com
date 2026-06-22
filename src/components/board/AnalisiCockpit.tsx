@@ -119,15 +119,24 @@ const DATI_DEFAULT: DatiCliente = {
 };
 
 const FALLBACK_LUCE: ParametriRegolati = {
-  trasporto_gestione: 0.015,
-  oneri_sistema: 0.02,
-  accise: 0.0227,
-  iva: 0.1,
+  sigma1_mese:               1.90,
+  sigma2_kw_mese:            2.106,
+  sigma3_uc3_kwh:            0.01057,
+  oneri_luce_fisso_mese:     0.50,
+  oneri_luce_var_kwh:        0.0350,
+  accise_luce_dom:           0.0227,
+  accise_luce_bus:           0.0125,
+  soglia_esenzione_kwh_mese: 150,
+  iva_dom:                   0.10,
+  iva_bus:                   0.22,
+  perdite_rete:              1.10,
+  cdispd_anno:               1.23,
+  canone_rai_anno:           90,
+  accise:                    0.0227,
+  iva:                       0.10,
 };
 
 const FALLBACK_GAS: ParametriRegolati = {
-  trasporto_gestione: 0,
-  oneri_sistema: 0,
   trasporto: 0.09,
   oneri: 0.04,
   accise: 0.044,
@@ -517,31 +526,47 @@ export function AnalisiCockpit() {
       ? { ...prezziMercato, pun_medio: areraLuce.prezziMercato.pun_medio }
       : prezziMercato;
     return calcolaConfrontoOfferte(
-      { ...dati, tipo_cliente: tipoCliente, spesa_annua_luce: spesaAnnuaLuce, spesa_annua_gas: 0 },
+      {
+        ...dati,
+        tipo_cliente: tipoCliente,
+        prezzo_materia_luce: parseFloat(prezzoMateriaLuce) || undefined,
+        quota_fissa_luce_mese: parseFloat(quotaFissaLuceAtt) || undefined,
+        prezzo_materia_gas: 0,
+        quota_fissa_gas_mese: 0,
+      },
       ctes.filter((c) => c.tipo_fornitura === "luce"),
       effParamLuce,
       null,
       effPrezzi,
     );
-  }, [showResults, showLuce, dati, tipoCliente, spesaAnnuaLuce, ctes, parametriLuce, prezziMercato, areraLuce]);
+  }, [showResults, showLuce, dati, tipoCliente, prezzoMateriaLuce, quotaFissaLuceAtt, ctes, parametriLuce, prezziMercato, areraLuce]);
 
   const risultatiGas = useMemo(() => {
     if (!showResults || !showGas || !(dati.consumo_annuo_smc ?? 0)) return [];
     return calcolaConfrontoOfferte(
-      { ...dati, tipo_cliente: tipoCliente, spesa_annua_luce: 0, spesa_annua_gas: spesaAnnuaGas },
+      {
+        ...dati,
+        tipo_cliente: tipoCliente,
+        prezzo_materia_gas: parseFloat(prezzoMateriaGas) || undefined,
+        quota_fissa_gas_mese: parseFloat(quotaFissaGasAtt) || undefined,
+        prezzo_materia_luce: 0,
+        quota_fissa_luce_mese: 0,
+      },
       ctes.filter((c) => c.tipo_fornitura === "gas"),
       null,
       parametriGas ?? FALLBACK_GAS,
       prezziMercato,
     );
-  }, [showResults, showGas, dati, tipoCliente, spesaAnnuaGas, ctes, parametriGas, prezziMercato]);
+  }, [showResults, showGas, dati, tipoCliente, prezzoMateriaGas, quotaFissaGasAtt, ctes, parametriGas, prezziMercato]);
 
-  const haSpesaLuce = spesaAnnuaLuce > 0;
-  const haSpesaGas = spesaAnnuaGas > 0;
+  const haDatiAttualiLuce = (parseFloat(prezzoMateriaLuce) || 0) > 0 && (parseFloat(quotaFissaLuceAtt) || 0) >= 0;
+  const haDatiAttualiGas  = (parseFloat(prezzoMateriaGas)  || 0) > 0 && (parseFloat(quotaFissaGasAtt)  || 0) >= 0;
+  const haSpesaLuce = haDatiAttualiLuce && spesaAnnuaLuce > 0;
+  const haSpesaGas  = haDatiAttualiGas  && spesaAnnuaGas  > 0;
   const canCalcola =
     !loadingZona &&
-    ((showLuce && !!(dati.consumo_annuo_kwh ?? 0)) ||
-      (showGas && !!(dati.consumo_annuo_smc ?? 0)));
+    ((showLuce && !!(dati.consumo_annuo_kwh ?? 0) && haDatiAttualiLuce) ||
+      (showGas && !!(dati.consumo_annuo_smc ?? 0) && haDatiAttualiGas));
 
   const bestLuce = risultatiLuce[0];
   const bestGas = risultatiGas[0];
@@ -567,8 +592,10 @@ export function AnalisiCockpit() {
         tenant_id: tenantId as string,
         dati_input: {
           ...dati,
-          spesa_annua_luce: spesaAnnuaLuce,
-          spesa_annua_gas: spesaAnnuaGas,
+          prezzo_materia_luce: parseFloat(prezzoMateriaLuce) || undefined,
+          quota_fissa_luce_mese: parseFloat(quotaFissaLuceAtt) || undefined,
+          prezzo_materia_gas: parseFloat(prezzoMateriaGas) || undefined,
+          quota_fissa_gas_mese: parseFloat(quotaFissaGasAtt) || undefined,
           prezzi_mercato: prezziMercato,
         },
         snapshot_offerte: snapshot,

@@ -27,13 +27,17 @@ export interface DatiCliente {
   potenza_impegnata_kw?: number       // default 3.0
   tensione?: 'BT' | 'MT'             // solo business
   zona_arera?: string                 // NORD | CNOR | CSUD | SUD | SICI | SARD
-  spesa_annua_luce?: number           // spesa attuale del cliente
+  prezzo_materia_luce?: number        // €/kWh — offerta attuale del cliente
+  quota_fissa_luce_mese?: number      // €/mese — quota fissa offerta attuale
+  segmento_cliente?: 'residenziale' | 'business'
+  residente?: boolean
 
   // --- GAS ---
   consumo_annuo_smc?: number
   uso_gas?: UsoGas
   ambito_gas?: string                 // NORD_OVEST | NORD_EST | CENTRALE | etc.
-  spesa_annua_gas?: number
+  prezzo_materia_gas?: number         // €/Smc — offerta attuale del cliente
+  quota_fissa_gas_mese?: number       // €/mese — quota fissa offerta attuale
 
   // --- CONDIZIONI ---
   rid_attivo?: boolean                // domiciliazione bancaria
@@ -73,17 +77,27 @@ export interface CTE {
 }
 
 export interface ParametriRegolati {
-  // luce
-  trasporto_gestione: number          // €/kWh
-  oneri_sistema: number               // €/kWh
-  tide?: number                       // TIDE €/kWh (luce) — Tariffa Incentivazione Distribuzione Energia
-  dispacciamento?: number             // Dispacciamento/uplift €/kWh (luce)
-  // gas (nomi diversi nello schema ARERA — opzionali per retrocompatibilità luce)
-  trasporto?: number                  // €/Smc
-  oneri?: number                      // €/Smc
-  // comuni
-  accise: number                      // €/kWh o €/Smc
-  iva: number                         // 0.10 o 0.22
+  // luce (schema componenti_regolate_luce) — opzionali per compatibilità oggetti gas-only
+  sigma1_mese?: number              // €/mese quota fissa rete
+  sigma2_kw_mese?: number           // €/kW/mese quota potenza
+  sigma3_uc3_kwh?: number           // €/kWh quota variabile rete + UC3
+  oneri_luce_fisso_mese?: number    // €/mese
+  oneri_luce_var_kwh?: number       // €/kWh
+  oneri_asos_fisso_nonres?: number  // €/anno solo non-residenti
+  accise_luce_dom?: number          // €/kWh domestico
+  accise_luce_bus?: number          // €/kWh business
+  soglia_esenzione_kwh_mese?: number
+  iva_dom?: number                  // 0.10
+  iva_bus?: number                  // 0.22
+  perdite_rete?: number             // moltiplicatore 1.10
+  cdispd_anno?: number              // €/anno
+  canone_rai_anno?: number          // €/anno
+  // gas
+  trasporto?: number                // €/Smc
+  oneri?: number                    // €/Smc
+  // comuni (retrocompat gas)
+  accise: number                    // €/Smc per gas; non usato per luce nel nuovo motore
+  iva: number                       // 0.10 per gas
 }
 
 export interface PrezzoMercato {
@@ -171,7 +185,9 @@ export function calcolaConfrontoOfferte(
 ): RisultatoOfferta[] {
 
   const risultati: RisultatoOfferta[] = []
-  const spesaAttuale = (cliente.spesa_annua_luce ?? 0) + (cliente.spesa_annua_gas ?? 0)
+  const spesaAttuale =
+    ((cliente.prezzo_materia_luce ?? 0) * (cliente.consumo_annuo_kwh ?? 0) + (cliente.quota_fissa_luce_mese ?? 0) * 12) +
+    ((cliente.prezzo_materia_gas  ?? 0) * (cliente.consumo_annuo_smc  ?? 0) + (cliente.quota_fissa_gas_mese  ?? 0) * 12)
 
   for (const cte of cteList) {
     let costoLuce = 0
@@ -242,38 +258,78 @@ function calcolaCostoLuce(
   parametri: ParametriRegolati,
   prezzi: PrezzoMercato
 ): number {
-  const consumo = cliente.consumo_annuo_kwh!
-  let materiaEnergia: number
+  const {
+    sigma1_mese, sigma2_kw_mese, sigma3_uc3_kwh,
+    oneri_luce_fisso_mese, oneri_luce_var_kwh, oneri_asos_fisso_nonres,
+    accise_luce_dom, accise_luce_bus, soglia_esenzione_kwh_mese,
+    iva_dom, iva_bus, perdite_rete, cdispd_anno, canone_rai_anno,
+  } = parametri
 
+  if (
+    sigma1_mese == null || sigma2_kw_mese == null || sigma3_uc3_kwh == null ||
+    oneri_luce_fisso_mese == null || oneri_luce_var_kwh == null ||
+    accise_luce_dom == null || accise_luce_bus == null || soglia_esenzione_kwh_mese == null ||
+    iva_dom == null || iva_bus == null || perdite_rete == null ||
+    cdispd_anno == null || canone_rai_anno == null
+  ) {
+    throw new Error('calcolaCostoLuce: parametri luce incompleti — usare ParametriRegolati da componenti_regolate_luce')
+  }
+
+  const consumo = cliente.consumo_annuo_kwh!
+  const isBusiness = cliente.tipo_cliente === 'business' || cliente.segmento_cliente === 'business'
+  const isResidente = cliente.residente !== undefined
+    ? cliente.residente
+    : cliente.tipo_cliente === 'domestico_residente'
+  const potenza = cliente.potenza_impegnata_kw ?? 3.0
+
+  // Materia energia — perdite_rete solo per indicizzato/variabile (PUN al netto perdite)
+  let materiaEnergia: number
   if (cte.tipo_prezzo === 'fisso') {
-    if (
-      cliente.tipo_tariffa !== 'monoraria' &&
-      cte.prezzo_f1 != null &&
-      cte.prezzo_f2 != null
-    ) {
+    if (cliente.tipo_tariffa !== 'monoraria' && cte.prezzo_f1 != null && cte.prezzo_f2 != null) {
       const f1 = cliente.fascia_f1_kwh ?? consumo * 0.33
       const f2 = cliente.fascia_f2_kwh ?? consumo * 0.33
       const f3 = cliente.fascia_f3_kwh ?? consumo * 0.34
-      materiaEnergia =
-        cte.prezzo_f1 * f1 +
-        cte.prezzo_f2 * f2 +
-        (cte.prezzo_f3 ?? cte.prezzo_f2) * f3
+      materiaEnergia = cte.prezzo_f1 * f1 + cte.prezzo_f2 * f2 + (cte.prezzo_f3 ?? cte.prezzo_f2) * f3
     } else {
       materiaEnergia = (cte.prezzo_energia_luce ?? 0) * consumo
     }
   } else {
-    materiaEnergia = (prezzi.pun_medio + (cte.spread_luce ?? 0)) * consumo
+    materiaEnergia = (prezzi.pun_medio + (cte.spread_luce ?? 0)) * consumo * perdite_rete
   }
 
-  const trasporto = parametri.trasporto_gestione * consumo
-  const oneri = parametri.oneri_sistema * consumo
-  const accise = parametri.accise * consumo
-  const imponibile = materiaEnergia + trasporto + oneri + accise
-  const iva = imponibile * parametri.iva
+  // Rete ARERA (σ)
+  const quotaFissaRete = sigma1_mese * 12
+  const quotaPotenza = sigma2_kw_mese * potenza * 12
+  const quotaVarRete = sigma3_uc3_kwh * consumo
+
+  // Oneri di sistema
+  const oneriFissi = oneri_luce_fisso_mese * 12
+  const oneriVar = oneri_luce_var_kwh * consumo
+  const oneriAsos = (!isResidente && !isBusiness && oneri_asos_fisso_nonres != null)
+    ? oneri_asos_fisso_nonres
+    : 0
+
+  // Accise (domestico residente: soglia esenzione; business/non-res: tutto tassabile)
+  const acciseAliquota = isBusiness ? accise_luce_bus : accise_luce_dom
+  const sogliaAnnua = soglia_esenzione_kwh_mese * 12
+  const kwhTassabili = (isResidente && !isBusiness) ? Math.max(0, consumo - sogliaAnnua) : consumo
+  const accise = acciseAliquota * kwhTassabili
+
+  // Imponibile + IVA
+  const imponibile = materiaEnergia + quotaFissaRete + quotaPotenza + quotaVarRete
+    + oneriFissi + oneriVar + oneriAsos + accise
+  const ivaAliquota = isBusiness ? iva_bus : iva_dom
+  const iva = imponibile * ivaAliquota
+
+  // Fissi annui
+  const cdispd = cdispd_anno
+  const rai = (isResidente && !isBusiness) ? canone_rai_anno : 0
+
+  // Quota CTE fornitore + sconti
   const quotaFissa = (cte.quota_fissa_luce ?? 0) * 12
   const sconti = calcolaSconti(cliente, cte)
 
-  return imponibile + iva + quotaFissa - sconti
+  return imponibile + iva + quotaFissa + cdispd + rai - sconti
 }
 
 function calcolaCostoGas(
@@ -291,10 +347,8 @@ function calcolaCostoGas(
     materiaEnergia = (prezzi.psv_medio + (cte.spread_gas ?? 0)) * consumo
   }
 
-  // trasporto e oneri: nel DB gas si chiamano 'trasporto' e 'oneri',
-  // diversamente da luce che ha 'trasporto_gestione' e 'oneri_sistema'
-  const trasporto = (parametri.trasporto ?? parametri.trasporto_gestione) * consumo
-  const oneri = (parametri.oneri ?? parametri.oneri_sistema) * consumo
+  const trasporto = (parametri.trasporto ?? 0) * consumo
+  const oneri = (parametri.oneri ?? 0) * consumo
   const accise = calcolaAcciseGas(consumo, cliente.uso_gas, cliente.tipo_cliente)
   const imponibile = materiaEnergia + trasporto + oneri + accise
   const iva = imponibile * parametri.iva

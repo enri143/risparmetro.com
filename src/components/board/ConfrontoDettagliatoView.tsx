@@ -46,8 +46,8 @@ function OfferDettaglioCard({
   cte,
   mktPriceLuce,
   mktPriceGas,
-  parametriLuce,
-  parametriGas,
+  parametriLuce: _parametriLuce,
+  parametriGas: _parametriGas,
   spesaAnnuaLuce,
   spesaAnnuaGas,
   clientMode,
@@ -80,7 +80,6 @@ function OfferDettaglioCard({
   const spread = isLuce ? (cte?.spread_luce ?? null) : (cte?.spread_gas ?? null);
   const prezzoFisso = isLuce ? cte?.prezzo_energia_luce : cte?.prezzo_energia_gas;
   const quotaFissaMese = isLuce ? (cte?.quota_fissa_luce ?? 0) : (cte?.quota_fissa_gas ?? 0);
-  const parametri = isLuce ? parametriLuce : parametriGas;
   const spesaAttuale = isLuce ? spesaAnnuaLuce : spesaAnnuaGas;
 
   const isFisso = r.tipo_prezzo === "fisso";
@@ -167,16 +166,6 @@ function OfferDettaglioCard({
                   />
                   {spread !== null && (
                     <BreakdownRow label="Spread fornitore" value={spread} unit={unit} />
-                  )}
-                  {parametri?.tide !== undefined && (
-                    <BreakdownRow label="TIDE" value={parametri.tide} unit={unit} />
-                  )}
-                  {parametri?.dispacciamento !== undefined && (
-                    <BreakdownRow
-                      label="Dispacciamento"
-                      value={parametri.dispacciamento}
-                      unit={unit}
-                    />
                   )}
                 </>
               )}
