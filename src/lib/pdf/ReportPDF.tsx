@@ -312,6 +312,16 @@ function OfferCard({ r, tipo }: { r: RisultatoOfferta; tipo: 'Luce' | 'Gas' }) {
             </Text>
           </View>
         )}
+        {hasRisparmio && r.durata_blocco_mesi ? (
+          <View style={s.risparmioRow}>
+            <Text style={s.risparmioText}>
+              Bloccato {r.durata_blocco_mesi} mesi
+            </Text>
+            <Text style={s.risparmioText}>
+              {eur(r.risparmio_annuo * r.durata_blocco_mesi / 12)} € totali
+            </Text>
+          </View>
+        ) : null}
       </View>
     </View>
   )
@@ -349,6 +359,12 @@ export function ReportPDF({
       : spesaAnnuaLuce > 0
         ? `Risparmio rispetto alla spesa attuale (luce: ${eur(spesaAnnuaLuce)} €/anno)`
         : `Risparmio rispetto alla spesa attuale (gas: ${eur(spesaAnnuaGas)} €/anno)`
+
+  const validoFino = (() => {
+    const d = new Date()
+    d.setDate(d.getDate() + 30)
+    return d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  })()
 
   const disclaimer =
     `I valori riportati sono stime basate sui consumi dichiarati e sui prezzi alla data di simulazione. Non costituiscono offerta contrattuale.` +
@@ -412,7 +428,12 @@ export function ReportPDF({
 
         {/* Footer — fixed: si ripete su ogni pagina */}
         <View style={s.footer} fixed>
-          <Text style={s.footerText}>{disclaimer}</Text>
+          <View style={{ flex: 1, marginRight: 12 }}>
+            <Text style={s.footerText}>{disclaimer}</Text>
+            <Text style={[s.footerText, { marginTop: 2 }]}>
+              Preventivo valido fino al {validoFino}
+            </Text>
+          </View>
           <Text
             style={s.footerPage}
             render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`}

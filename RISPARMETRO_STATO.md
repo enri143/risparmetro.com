@@ -33,7 +33,7 @@ Legenda: ✅ fatto · ⏳ da fare · 🟡 parziale · ⏸️ in attesa esterna �
 - **B8** ⏳ 🔴 StoricoTab v2 su `simulazioni` (prima lettura multi-tenant seria → meglio DOPO D15-RLS)
 - **B9** ✅ 💰 PresentazioneView v2 / Salesboard — completa: Proiezione12Mesi (AreaChart) + BeforeAfterCard (BarChart Recharts + durata bloccata label con Lock icon). Layout grid 2-col iPad landscape. Zero provvigioni.
 - **B10** ⏳ 💰 OCR bolletta → autofill (`extract-bolletta-board` oggi è stub)
-- **B11** ⏳ 💰 PDF brandizzato per tenant
+- **B11** ✅ 💰 PDF brandizzato per tenant — logo + accent bar + dati + risparmio. Parità presentazione: durata bloccata nella card offerta (verde, solo se risparmio > 0). Footer: "Preventivo valido fino al gg/mm/aaaa" (+30 gg runtime).
 
 ### Blocco V — Co-pilot trattativa
 - **V1** ✅ "Gira il tablet" (overlay risparmio gigante)
@@ -66,7 +66,8 @@ Legenda: ✅ fatto · ⏳ da fare · 🟡 parziale · ⏸️ in attesa esterna �
 | 5 | D17 — rimossi `AnalisiTab.tsx` + `FiltriRapidiChips.tsx` orfani (guard grep vuoto) | `6d8ac02` | build OK, 33/3/0 |
 | 6 | B9 slice 1 — Proiezione12Mesi in PresentazioneView (grid 2-col, luce + gas, riuso componente esistente) | `590f33b` | build OK, 33/3/0 |
 | 7 | D17 finale — GoTrueClient: `supabase.ts` diventa re-export, istanza canonica con fallback chiave in `client.ts` | `00149eb` | build OK, 33/3/0 |
-| 8 | B9 slice 2 — BeforeAfterCard (BarChart Recharts) + durata bloccata label in PresentazioneView | (questo commit) | build OK, 33/3/0 |
+| 8 | B9 slice 2 — BeforeAfterCard (BarChart Recharts) + durata bloccata label in PresentazioneView | `63189b9` | build OK, 33/3/0 |
+| 9 | B11 parità PDF — durata bloccata in OfferCard + "Preventivo valido fino al" nel footer | (questo commit) | build OK, 33/3/0 |
 
 ---
 
