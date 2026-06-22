@@ -15,6 +15,8 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useShowIva, setShowIva } from "@/hooks/useShowIva";
 import { BrandingTab } from "./BrandingTab";
+import { AreraTab } from "./AreraTab";
+import { useIsPlatformAdmin } from "@/hooks/useIsPlatformAdmin";
 
 const DEFAULTS: Partial<Impostazioni> = {
   pun_riferimento: 0.12, psv_riferimento: 0.41, ccr_gas: 0.02,
@@ -249,12 +251,15 @@ function ParametriContent() {
 // proprio stato indipendentemente.
 
 export function ImpostazioniTab() {
+  const { isAdmin } = useIsPlatformAdmin();
+
   return (
     <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 max-w-3xl">
       <Tabs defaultValue="parametri">
         <TabsList className="mb-5">
           <TabsTrigger value="parametri">Parametri</TabsTrigger>
           <TabsTrigger value="branding">Branding</TabsTrigger>
+          {isAdmin && <TabsTrigger value="arera">ARERA</TabsTrigger>}
         </TabsList>
         <TabsContent value="parametri">
           <ParametriContent />
@@ -262,6 +267,11 @@ export function ImpostazioniTab() {
         <TabsContent value="branding">
           <BrandingTab />
         </TabsContent>
+        {isAdmin && (
+          <TabsContent value="arera">
+            <AreraTab />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

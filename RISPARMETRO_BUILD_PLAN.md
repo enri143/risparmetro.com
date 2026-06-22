@@ -42,6 +42,12 @@
 - Firma legacy preservata: tutte le viste (Maxi\*, Trattativa\*, Confronto\*, Presentazione\*, Report\*, Analisi\*) continuano a compilare e funzionare senza modifiche.
 - Golden test eliminati (saranno riscritti su Motore B in A1.8).
 
+### A3 — Pannello ARERA (giugno 2026)
+
+- CRUD completo su `componenti_regolate_luce` (INSERT/UPDATE/DELETE/SELECT).
+- Gated da `is_platform_admin()` — hook `useIsPlatformAdmin`, tab "ARERA" appare solo ai platform_admin.
+- Accessibile via Impostazioni → tab ARERA. RLS blocca scritture non-admin anche se la tab viene forzata.
+
 ### Prossimo step obbligatorio (A2)
 
 Collegare Supabase Auth (email/password o magic link), mappare utente a tenant via `tenant_members`. Senza auth reale, le tabelle per-tenant restano vuote (RLS blocca tutto con chiave anon).
