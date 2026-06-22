@@ -36,6 +36,12 @@
 | `src/lib/board/calcoli.ts` | Motore B — usato da ClassificaOfferte, ConfrontoModal, Proiezione12Mesi |
 | `src/lib/board/types.ts` | Tipi Motore B |
 
+### A1.7 — wrapper Motore B (giugno 2026)
+
+- Motore di calcolo passato a `calcoli.ts` (`simulaBollettaLuce` / `simulaBollettaGas`); la firma `calcolaConfrontoOfferte` e i tipi legacy (`DatiCliente`, `RisultatoOfferta`, `CTE`) restano invariati per le viste.
+- Firma legacy preservata: tutte le viste (Maxi\*, Trattativa\*, Confronto\*, Presentazione\*, Report\*, Analisi\*) continuano a compilare e funzionare senza modifiche.
+- Golden test eliminati (saranno riscritti su Motore B in A1.8).
+
 ### Prossimo step obbligatorio (A2)
 
 Collegare Supabase Auth (email/password o magic link), mappare utente a tenant via `tenant_members`. Senza auth reale, le tabelle per-tenant restano vuote (RLS blocca tutto con chiave anon).

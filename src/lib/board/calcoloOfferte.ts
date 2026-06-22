@@ -1,12 +1,19 @@
 // ============================================================================
-// calcoloOfferte.ts — Motore di calcolo confronto offerte energia
+// calcoloOfferte.ts — Motore contendibile (A1.7b)
 //
+// Calcola solo la "parte contendibile" dell'offerta:
+//   Luce fisso / attuale: prezzo_materia × consumo + quota_fissa × 12
+//   Luce indicizzato:     (PUN + spread) × consumo × perdite_rete + quota_fissa × 12
+//   Gas:                  prezzo_materia × consumo + quota_fissa × 12
+//
+// Tutti i numeri sono NETTO IVA. Le viste applicano IVA via switch.
 // REGOLA: puro TypeScript, zero dipendenze React, zero import Supabase.
-// I dati (CTE, parametri regolati, zone) arrivano come argomenti.
 // ============================================================================
 
+import type { Impostazioni } from './types';
+
 // ---------------------------------------------------------------------------
-// 1. TIPI
+// 1. TIPI (invariati — viste consumano questi)
 // ---------------------------------------------------------------------------
 
 export type TipoFornitura = 'luce' | 'gas' | 'dual'
@@ -19,14 +26,14 @@ export interface DatiCliente {
   tipo_cliente: TipoCliente
 
   // --- LUCE ---
-  consumo_annuo_kwh?: number          // totale
-  fascia_f1_kwh?: number              // se bioraria/trioraria
+  consumo_annuo_kwh?: number
+  fascia_f1_kwh?: number
   fascia_f2_kwh?: number
-  fascia_f3_kwh?: number              // trioraria: separata; bioraria: F2+F3 insieme
+  fascia_f3_kwh?: number
   tipo_tariffa?: TipoTariffa
-  potenza_impegnata_kw?: number       // default 3.0
-  tensione?: 'BT' | 'MT'             // solo business
-  zona_arera?: string                 // NORD | CNOR | CSUD | SUD | SICI | SARD
+  potenza_impegnata_kw?: number
+  tensione?: 'BT' | 'MT'
+  zona_arera?: string
   prezzo_materia_luce?: number        // €/kWh — offerta attuale del cliente
   quota_fissa_luce_mese?: number      // €/mese — quota fissa offerta attuale
   segmento_cliente?: 'residenziale' | 'business'
@@ -35,12 +42,12 @@ export interface DatiCliente {
   // --- GAS ---
   consumo_annuo_smc?: number
   uso_gas?: UsoGas
-  ambito_gas?: string                 // NORD_OVEST | NORD_EST | CENTRALE | etc.
+  ambito_gas?: string
   prezzo_materia_gas?: number         // €/Smc — offerta attuale del cliente
   quota_fissa_gas_mese?: number       // €/mese — quota fissa offerta attuale
 
   // --- CONDIZIONI ---
-  rid_attivo?: boolean                // domiciliazione bancaria
+  rid_attivo?: boolean
   fattura_elettronica?: boolean
 }
 
@@ -53,20 +60,20 @@ export interface CTE {
   tipo_prezzo: 'fisso' | 'variabile' | 'indicizzato'
 
   // pricing luce
-  prezzo_energia_luce?: number        // €/kWh (offerte fisse: prezzo monorario o per fascia)
-  prezzo_f1?: number                  // €/kWh fascia F1 (se l'offerta è multioraria)
-  prezzo_f2?: number                  // €/kWh fascia F2
-  prezzo_f3?: number                  // €/kWh fascia F3
-  spread_luce?: number                // €/kWh sopra PUN (variabili/indicizzate)
+  prezzo_energia_luce?: number
+  prezzo_f1?: number
+  prezzo_f2?: number
+  prezzo_f3?: number
+  spread_luce?: number
   quota_fissa_luce?: number           // €/mese
 
   // pricing gas
-  prezzo_energia_gas?: number         // €/Smc (offerte fisse)
-  spread_gas?: number                 // €/Smc sopra PSV (variabili)
+  prezzo_energia_gas?: number
+  spread_gas?: number
   quota_fissa_gas?: number            // €/mese
 
-  sconto_rid?: number                 // €/anno di sconto se RID attivo
-  sconto_fattura_elettronica?: number // €/anno se fattura elettronica
+  sconto_rid?: number
+  sconto_fattura_elettronica?: number
   durata_blocco_mesi?: number
 
   // vendibilità (solo per agente)
@@ -77,36 +84,36 @@ export interface CTE {
 }
 
 export interface ParametriRegolati {
-  // luce (schema componenti_regolate_luce) — opzionali per compatibilità oggetti gas-only
-  sigma1_mese?: number              // €/mese quota fissa rete
-  sigma2_kw_mese?: number           // €/kW/mese quota potenza
-  sigma3_uc3_kwh?: number           // €/kWh quota variabile rete + UC3
-  oneri_luce_fisso_mese?: number    // €/mese
-  oneri_luce_var_kwh?: number       // €/kWh
-  oneri_asos_fisso_nonres?: number  // €/anno solo non-residenti
-  accise_luce_dom?: number          // €/kWh domestico
-  accise_luce_bus?: number          // €/kWh business
+  // luce (componenti_regolate_luce)
+  sigma1_mese?: number
+  sigma2_kw_mese?: number
+  sigma3_uc3_kwh?: number
+  oneri_luce_fisso_mese?: number
+  oneri_luce_var_kwh?: number
+  oneri_asos_fisso_nonres?: number
+  accise_luce_dom?: number
+  accise_luce_bus?: number
   soglia_esenzione_kwh_mese?: number
-  iva_dom?: number                  // 0.10
-  iva_bus?: number                  // 0.22
-  perdite_rete?: number             // moltiplicatore 1.10
-  cdispd_anno?: number              // €/anno
-  canone_rai_anno?: number          // €/anno
+  iva_dom?: number
+  iva_bus?: number
+  perdite_rete?: number
+  cdispd_anno?: number
+  canone_rai_anno?: number
   // gas
-  trasporto?: number                // €/Smc
-  oneri?: number                    // €/Smc
+  trasporto?: number
+  oneri?: number
   // comuni (retrocompat gas)
-  accise: number                    // €/Smc per gas; non usato per luce nel nuovo motore
-  iva: number                       // 0.10 per gas
+  accise: number
+  iva: number
 }
 
 export interface PrezzoMercato {
-  pun_medio: number                   // €/kWh (media ultimi 30 gg)
-  psv_medio: number                   // €/Smc
+  pun_medio: number
+  psv_medio: number
 }
 
 // ---------------------------------------------------------------------------
-// 2. RISULTATO
+// 2. RISULTATO (invariato — viste consumano questo)
 // ---------------------------------------------------------------------------
 
 export interface RisultatoOfferta {
@@ -117,20 +124,20 @@ export interface RisultatoOfferta {
   tipo_prezzo: string
   durata_blocco_mesi?: number
 
-  // breakdown costo annuo stimato
-  costo_materia_energia: number       // prezzo fornitore × consumo
-  costo_trasporto: number             // trasporto + gestione contatore (ARERA)
-  costo_oneri: number                 // oneri di sistema (ARERA)
-  costo_accise: number                // accise (stato)
-  imponibile: number                  // somma dei 4 sopra
-  iva: number                         // imponibile × aliquota IVA
+  // breakdown costo annuo (parte contendibile)
+  costo_materia_energia: number       // prezzo × consumo (× perdite per luce)
+  costo_trasporto: number             // 0 — non contendibile
+  costo_oneri: number                 // 0 — non contendibile
+  costo_accise: number                // 0 — non contendibile
+  imponibile: number                  // 0 — non usato in questo motore
+  iva: number                         // 0 — applicata dalla vista via switch
   quota_fissa_annua: number           // quota_fissa_mese × 12
-  sconti: number                      // RID + fattura elettronica
-  costo_annuo_totale: number          // imponibile + iva + quota_fissa - sconti
+  sconti: number                      // 0 — non modellato in A1.7b
+  costo_annuo_totale: number          // costo_materia_energia + quota_fissa_annua
 
   // confronto
-  risparmio_annuo: number             // spesa_attuale - costo_annuo_totale
-  risparmio_percentuale: number       // risparmio / spesa_attuale × 100
+  risparmio_annuo: number
+  risparmio_percentuale: number
 
   // agente
   provvigione?: number
@@ -140,79 +147,176 @@ export interface RisultatoOfferta {
 }
 
 // ---------------------------------------------------------------------------
-// 3. FUNZIONE PRINCIPALE
+// 3. DEFAULTS Motore B (speculari a ImpostazioniTab.tsx)
 // ---------------------------------------------------------------------------
 
-/**
- * Calcola il costo annuo stimato per ogni CTE e lo confronta con la spesa attuale.
- *
- * FORMULA PER LUCE (offerta fissa monoraria):
- *   materia_energia = prezzo_energia_luce × consumo_annuo_kwh
- *   trasporto       = parametri.trasporto_gestione × consumo_annuo_kwh
- *   oneri           = parametri.oneri_sistema × consumo_annuo_kwh
- *   accise          = parametri.accise × consumo_annuo_kwh
- *   imponibile      = materia_energia + trasporto + oneri + accise
- *   iva             = imponibile × parametri.iva
- *   quota_fissa     = cte.quota_fissa_luce × 12
- *   sconti          = (rid ? cte.sconto_rid : 0) + (fatt_el ? cte.sconto_fattura_el : 0)
- *   TOTALE          = imponibile + iva + quota_fissa - sconti
- *
- * FORMULA PER LUCE (offerta fissa multioraria):
- *   materia_energia = (prezzo_f1 × f1_kwh) + (prezzo_f2 × f2_kwh) + (prezzo_f3 × f3_kwh)
- *   ... resto uguale
- *
- * FORMULA PER LUCE (offerta variabile/indicizzata):
- *   materia_energia = (pun_medio + spread_luce) × consumo_annuo_kwh
- *   ... resto uguale
- *
- * FORMULA PER GAS:
- *   materia_energia = prezzo_energia_gas × consumo_annuo_smc
- *   (oppure variabile: (psv_medio + spread_gas) × consumo_annuo_smc)
- *   trasporto       = parametri_gas.trasporto × consumo_annuo_smc
- *   oneri           = parametri_gas.oneri × consumo_annuo_smc
- *   accise          = calcolaAcciseGas(consumo_annuo_smc, uso_gas, tipo_cliente)
- *   imponibile      = materia_energia + trasporto + oneri + accise
- *   iva             = imponibile × parametri_gas.iva
- *   quota_fissa     = cte.quota_fissa_gas × 12
- *   TOTALE          = imponibile + iva + quota_fissa - sconti
- */
+const IMPOSTAZIONI_DEFAULTS: Impostazioni = {
+  id: 0,
+  pun_riferimento: 0.12,
+  psv_riferimento: 0.41,
+  ccr_gas: 0.02,
+  perdite_rete: 1.10,
+  sigma1_mese: 1.90,
+  sigma2_kw_mese: 2.106,
+  sigma3_uc3_kwh: 0.01057,
+  oneri_luce_fisso_mese: 0.50,
+  oneri_luce_var_kwh: 0.0350,
+  accise_luce_dom: 0.0227,
+  accise_luce_bus: 0.0125,
+  soglia_esenzione_kwh_mese: 150,
+  iva_dom: 0.10,
+  iva_bus: 0.22,
+  canone_rai_anno: 90,
+  cdispd_anno: 1.23,
+  gas_trasporto_fisso_mese: 4.75,
+  gas_trasporto_var_smc: 0.042,
+  gas_oneri_fisso_mese: 0.50,
+  gas_oneri_var_smc: 0.040,
+  gas_accise_1_smc: 0.044,
+  gas_accise_2_smc: 0.175,
+  gas_accise_soglia: 120,
+  gas_add_regionale: 0.0155,
+  gas_iva_soglia: 480,
+};
+
+// ---------------------------------------------------------------------------
+// 4. mappaImpostazioni — estrae pun/psv/ccr/perdite dai parametri ARERA
+// ---------------------------------------------------------------------------
+
+function mappaImpostazioni(
+  pl: ParametriRegolati | null,
+  pg: ParametriRegolati | null,
+  pm: PrezzoMercato,
+): Impostazioni {
+  const D = IMPOSTAZIONI_DEFAULTS;
+  return {
+    id: 0,
+    pun_riferimento: pm.pun_medio,
+    psv_riferimento: pm.psv_medio,
+    ccr_gas: D.ccr_gas,
+    perdite_rete:              pl?.perdite_rete              ?? D.perdite_rete,
+    sigma1_mese:               pl?.sigma1_mese               ?? D.sigma1_mese,
+    sigma2_kw_mese:            pl?.sigma2_kw_mese            ?? D.sigma2_kw_mese,
+    sigma3_uc3_kwh:            pl?.sigma3_uc3_kwh            ?? D.sigma3_uc3_kwh,
+    oneri_luce_fisso_mese:     pl?.oneri_luce_fisso_mese     ?? D.oneri_luce_fisso_mese,
+    oneri_luce_var_kwh:        pl?.oneri_luce_var_kwh        ?? D.oneri_luce_var_kwh,
+    oneri_asos_fisso_nonres:   pl?.oneri_asos_fisso_nonres,
+    accise_luce_dom:           pl?.accise_luce_dom           ?? D.accise_luce_dom,
+    accise_luce_bus:           pl?.accise_luce_bus           ?? D.accise_luce_bus,
+    soglia_esenzione_kwh_mese: pl?.soglia_esenzione_kwh_mese ?? D.soglia_esenzione_kwh_mese,
+    iva_dom:                   pl?.iva_dom                   ?? D.iva_dom,
+    iva_bus:                   pl?.iva_bus                   ?? D.iva_bus,
+    canone_rai_anno:           pl?.canone_rai_anno           ?? D.canone_rai_anno,
+    cdispd_anno:               pl?.cdispd_anno               ?? D.cdispd_anno,
+    gas_trasporto_fisso_mese: D.gas_trasporto_fisso_mese,
+    gas_trasporto_var_smc:    pg?.trasporto ?? D.gas_trasporto_var_smc,
+    gas_oneri_fisso_mese:     D.gas_oneri_fisso_mese,
+    gas_oneri_var_smc:        pg?.oneri    ?? D.gas_oneri_var_smc,
+    gas_accise_1_smc:         pg?.accise   ?? D.gas_accise_1_smc,
+    gas_accise_2_smc:         D.gas_accise_2_smc,
+    gas_accise_soglia:        D.gas_accise_soglia,
+    gas_add_regionale:        D.gas_add_regionale,
+    gas_iva_soglia:           D.gas_iva_soglia,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// 5. PARTE CONTENDIBILE
+//
+// perdite_rete si applica SOLO alle offerte indicizzate (PUN/PSV sono prezzi
+// all'ingrosso — serve il fattore perdite per arrivare al contatore).
+// Prezzi fissi e prezzo attuale del cliente sono già prezzi al contatore → no perdite.
+// ---------------------------------------------------------------------------
+
+function costoContendibileLuce(
+  prezzoMateria: number,
+  consumoKwh: number,
+  quotaFissaMese: number,
+): number {
+  return prezzoMateria * consumoKwh + quotaFissaMese * 12;
+}
+
+function costoContendibileGas(
+  prezzoMateria: number,
+  consumoSmc: number,
+  quotaFissaMese: number,
+): number {
+  return prezzoMateria * consumoSmc + quotaFissaMese * 12;
+}
+
+// ---------------------------------------------------------------------------
+// 6. FUNZIONE PRINCIPALE
+// ---------------------------------------------------------------------------
+
 export function calcolaConfrontoOfferte(
   cliente: DatiCliente,
   cteList: CTE[],
   parametriLuce: ParametriRegolati | null,
   parametriGas: ParametriRegolati | null,
-  prezziMercato: PrezzoMercato
+  prezziMercato: PrezzoMercato,
 ): RisultatoOfferta[] {
+  const imp = mappaImpostazioni(parametriLuce, parametriGas, prezziMercato);
 
-  const risultati: RisultatoOfferta[] = []
-  const spesaAttuale =
-    ((cliente.prezzo_materia_luce ?? 0) * (cliente.consumo_annuo_kwh ?? 0) + (cliente.quota_fissa_luce_mese ?? 0) * 12) +
-    ((cliente.prezzo_materia_gas  ?? 0) * (cliente.consumo_annuo_smc  ?? 0) + (cliente.quota_fissa_gas_mese  ?? 0) * 12)
+  const risultati: RisultatoOfferta[] = [];
 
   for (const cte of cteList) {
-    let costoLuce = 0
-    let costoGas = 0
+    const hasLuce = cte.tipo_fornitura === 'luce' || cte.tipo_fornitura === 'dual';
+    const hasGas  = cte.tipo_fornitura === 'gas'  || cte.tipo_fornitura === 'dual';
 
-    // --- LUCE ---
-    if (
-      (cte.tipo_fornitura === 'luce' || cte.tipo_fornitura === 'dual') &&
-      cliente.consumo_annuo_kwh &&
-      parametriLuce
-    ) {
-      costoLuce = calcolaCostoLuce(cliente, cte, parametriLuce, prezziMercato)
-    }
+    const hasDatiLuce = hasLuce
+      && (cliente.consumo_annuo_kwh ?? 0) > 0
+      && (cliente.prezzo_materia_luce ?? 0) > 0;
+    const hasDatiGas = hasGas
+      && (cliente.consumo_annuo_smc ?? 0) > 0
+      && (cliente.prezzo_materia_gas ?? 0) > 0;
 
-    // --- GAS ---
-    if (
-      (cte.tipo_fornitura === 'gas' || cte.tipo_fornitura === 'dual') &&
-      cliente.consumo_annuo_smc &&
-      parametriGas
-    ) {
-      costoGas = calcolaCostoGas(cliente, cte, parametriGas, prezziMercato)
-    }
+    // ── Spesa attuale (parte contendibile) ──────────────────────────────────
+    // prezzo_materia_luce è già un prezzo al contatore → no perdite_rete
+    const spesaAttLuce = hasDatiLuce
+      ? costoContendibileLuce(
+          cliente.prezzo_materia_luce!,
+          cliente.consumo_annuo_kwh!,
+          cliente.quota_fissa_luce_mese ?? 0,
+        )
+      : 0;
+    const spesaAttGas = hasDatiGas
+      ? costoContendibileGas(
+          cliente.prezzo_materia_gas!,
+          cliente.consumo_annuo_smc!,
+          cliente.quota_fissa_gas_mese ?? 0,
+        )
+      : 0;
 
-    const costoTotale = costoLuce + costoGas
-    const risparmio = spesaAttuale - costoTotale
+    // ── Prezzo materia dell'offerta ─────────────────────────────────────────
+    const isFisso = cte.tipo_prezzo === 'fisso';
+
+    const prezzoLuce = isFisso
+      ? (cte.prezzo_energia_luce ?? 0)
+      : imp.pun_riferimento + (cte.spread_luce ?? 0);
+
+    const prezzoGas = isFisso
+      ? (cte.prezzo_energia_gas ?? 0)
+      : imp.psv_riferimento + imp.ccr_gas + (cte.spread_gas ?? 0);
+
+    // ── Costo offerta (parte contendibile) ──────────────────────────────────
+    // Fisso → prezzo già al contatore. Indicizzato → PUN/PSV wholesale × perdite_rete
+    const materiaLuce = hasDatiLuce
+      ? isFisso
+        ? prezzoLuce * cliente.consumo_annuo_kwh!
+        : prezzoLuce * cliente.consumo_annuo_kwh! * imp.perdite_rete
+      : 0;
+    const quotaLuce = hasDatiLuce ? (cte.quota_fissa_luce ?? 0) * 12 : 0;
+    const costoOffLuce = materiaLuce + quotaLuce;
+
+    const materiaGas = hasDatiGas
+      ? prezzoGas * cliente.consumo_annuo_smc!
+      : 0;
+    const quotaGas = hasDatiGas ? (cte.quota_fissa_gas ?? 0) * 12 : 0;
+    const costoOffGas = materiaGas + quotaGas;
+
+    const costoTotale = costoOffLuce + costoOffGas;
+    const spesaTotale = spesaAttLuce + spesaAttGas;
+    const risparmio   = spesaTotale - costoTotale;
 
     risultati.push({
       cte_id: cte.id,
@@ -222,200 +326,30 @@ export function calcolaConfrontoOfferte(
       tipo_prezzo: cte.tipo_prezzo,
       durata_blocco_mesi: cte.durata_blocco_mesi,
 
-      costo_materia_energia: 0,
-      costo_trasporto: 0,
-      costo_oneri: 0,
-      costo_accise: 0,
-      imponibile: 0,
-      iva: 0,
-      quota_fissa_annua: 0,
-      sconti: 0,
-      costo_annuo_totale: round2(costoTotale),
+      costo_materia_energia: round2(materiaLuce + materiaGas),
+      costo_trasporto:       0,
+      costo_oneri:           0,
+      costo_accise:          0,
+      imponibile:            0,
+      iva:                   0,
+      quota_fissa_annua:     round2(quotaLuce + quotaGas),
+      sconti:                0,
+      costo_annuo_totale:    round2(costoTotale),
 
-      risparmio_annuo: round2(risparmio),
-      risparmio_percentuale: spesaAttuale > 0
-        ? round1((risparmio / spesaAttuale) * 100)
+      risparmio_annuo:       round2(risparmio),
+      risparmio_percentuale: spesaTotale > 0
+        ? round1((risparmio / spesaTotale) * 100)
         : 0,
 
-      provvigione: cte.provvigione,
-      provvigione_tipo: cte.provvigione_tipo,
+      provvigione:         cte.provvigione,
+      provvigione_tipo:    cte.provvigione_tipo,
       mesi_storno_rischio: cte.mesi_storno_rischio,
-      priorita: cte.priorita,
-    })
+      priorita:            cte.priorita,
+    });
   }
 
-  risultati.sort((a, b) => b.risparmio_annuo - a.risparmio_annuo)
-  return risultati
-}
-
-// ---------------------------------------------------------------------------
-// 4. FUNZIONI DI CALCOLO COMPONENTI
-// ---------------------------------------------------------------------------
-
-function calcolaCostoLuce(
-  cliente: DatiCliente,
-  cte: CTE,
-  parametri: ParametriRegolati,
-  prezzi: PrezzoMercato
-): number {
-  const {
-    sigma1_mese, sigma2_kw_mese, sigma3_uc3_kwh,
-    oneri_luce_fisso_mese, oneri_luce_var_kwh, oneri_asos_fisso_nonres,
-    accise_luce_dom, accise_luce_bus, soglia_esenzione_kwh_mese,
-    iva_dom, iva_bus, perdite_rete, cdispd_anno, canone_rai_anno,
-  } = parametri
-
-  if (
-    sigma1_mese == null || sigma2_kw_mese == null || sigma3_uc3_kwh == null ||
-    oneri_luce_fisso_mese == null || oneri_luce_var_kwh == null ||
-    accise_luce_dom == null || accise_luce_bus == null || soglia_esenzione_kwh_mese == null ||
-    iva_dom == null || iva_bus == null || perdite_rete == null ||
-    cdispd_anno == null || canone_rai_anno == null
-  ) {
-    throw new Error('calcolaCostoLuce: parametri luce incompleti — usare ParametriRegolati da componenti_regolate_luce')
-  }
-
-  const consumo = cliente.consumo_annuo_kwh!
-  const isBusiness = cliente.tipo_cliente === 'business' || cliente.segmento_cliente === 'business'
-  const isResidente = cliente.residente !== undefined
-    ? cliente.residente
-    : cliente.tipo_cliente === 'domestico_residente'
-  const potenza = cliente.potenza_impegnata_kw ?? 3.0
-
-  // Materia energia — perdite_rete solo per indicizzato/variabile (PUN al netto perdite)
-  let materiaEnergia: number
-  if (cte.tipo_prezzo === 'fisso') {
-    if (cliente.tipo_tariffa !== 'monoraria' && cte.prezzo_f1 != null && cte.prezzo_f2 != null) {
-      const f1 = cliente.fascia_f1_kwh ?? consumo * 0.33
-      const f2 = cliente.fascia_f2_kwh ?? consumo * 0.33
-      const f3 = cliente.fascia_f3_kwh ?? consumo * 0.34
-      materiaEnergia = cte.prezzo_f1 * f1 + cte.prezzo_f2 * f2 + (cte.prezzo_f3 ?? cte.prezzo_f2) * f3
-    } else {
-      materiaEnergia = (cte.prezzo_energia_luce ?? 0) * consumo
-    }
-  } else {
-    materiaEnergia = (prezzi.pun_medio + (cte.spread_luce ?? 0)) * consumo * perdite_rete
-  }
-
-  // Rete ARERA (σ)
-  const quotaFissaRete = sigma1_mese * 12
-  const quotaPotenza = sigma2_kw_mese * potenza * 12
-  const quotaVarRete = sigma3_uc3_kwh * consumo
-
-  // Oneri di sistema
-  const oneriFissi = oneri_luce_fisso_mese * 12
-  const oneriVar = oneri_luce_var_kwh * consumo
-  const oneriAsos = (!isResidente && !isBusiness && oneri_asos_fisso_nonres != null)
-    ? oneri_asos_fisso_nonres
-    : 0
-
-  // Accise (domestico residente: soglia esenzione; business/non-res: tutto tassabile)
-  const acciseAliquota = isBusiness ? accise_luce_bus : accise_luce_dom
-  const sogliaAnnua = soglia_esenzione_kwh_mese * 12
-  const kwhTassabili = (isResidente && !isBusiness) ? Math.max(0, consumo - sogliaAnnua) : consumo
-  const accise = acciseAliquota * kwhTassabili
-
-  // Imponibile + IVA
-  const imponibile = materiaEnergia + quotaFissaRete + quotaPotenza + quotaVarRete
-    + oneriFissi + oneriVar + oneriAsos + accise
-  const ivaAliquota = isBusiness ? iva_bus : iva_dom
-  const iva = imponibile * ivaAliquota
-
-  // Fissi annui
-  const cdispd = cdispd_anno
-  const rai = (isResidente && !isBusiness) ? canone_rai_anno : 0
-
-  // Quota CTE fornitore + sconti
-  const quotaFissa = (cte.quota_fissa_luce ?? 0) * 12
-  const sconti = calcolaSconti(cliente, cte)
-
-  return imponibile + iva + quotaFissa + cdispd + rai - sconti
-}
-
-function calcolaCostoGas(
-  cliente: DatiCliente,
-  cte: CTE,
-  parametri: ParametriRegolati,
-  prezzi: PrezzoMercato
-): number {
-  const consumo = cliente.consumo_annuo_smc!
-  let materiaEnergia: number
-
-  if (cte.tipo_prezzo === 'fisso') {
-    materiaEnergia = (cte.prezzo_energia_gas ?? 0) * consumo
-  } else {
-    materiaEnergia = (prezzi.psv_medio + (cte.spread_gas ?? 0)) * consumo
-  }
-
-  const trasporto = (parametri.trasporto ?? 0) * consumo
-  const oneri = (parametri.oneri ?? 0) * consumo
-  const accise = calcolaAcciseGas(consumo, cliente.uso_gas, cliente.tipo_cliente)
-  const imponibile = materiaEnergia + trasporto + oneri + accise
-  const iva = imponibile * parametri.iva
-  const quotaFissa = (cte.quota_fissa_gas ?? 0) * 12
-  const sconti = calcolaSconti(cliente, cte)
-
-  return imponibile + iva + quotaFissa - sconti
-}
-
-// ---------------------------------------------------------------------------
-// 5. ACCISE GAS (scaglioni)
-// ---------------------------------------------------------------------------
-
-function calcolaAcciseGas(
-  consumoSmc: number,
-  usoGas?: UsoGas,
-  tipoCliente?: TipoCliente
-): number {
-  if (tipoCliente === 'business') {
-    return consumoSmc * 0.0124
-  }
-
-  if (usoGas === 'riscaldamento' || usoGas === 'entrambi' || !usoGas) {
-    return calcolaPerScaglioni(consumoSmc, [
-      { fino: 120,      aliquota: 0.0440 },
-      { fino: 480,      aliquota: 0.1750 },
-      { fino: 1560,     aliquota: 0.1700 },
-      { fino: Infinity, aliquota: 0.1860 },
-    ])
-  }
-
-  // cottura_acs
-  return calcolaPerScaglioni(consumoSmc, [
-    { fino: 480,      aliquota: 0.0440 },
-    { fino: Infinity, aliquota: 0.0854 },
-  ])
-}
-
-function calcolaPerScaglioni(
-  consumo: number,
-  scaglioni: { fino: number; aliquota: number }[]
-): number {
-  let totale = 0
-  let consumoResiduo = consumo
-  let sogliaPrecedente = 0
-
-  for (const s of scaglioni) {
-    const capienza = s.fino - sogliaPrecedente
-    const consumoInScaglione = Math.min(consumoResiduo, capienza)
-    totale += consumoInScaglione * s.aliquota
-    consumoResiduo -= consumoInScaglione
-    sogliaPrecedente = s.fino
-    if (consumoResiduo <= 0) break
-  }
-
-  return totale
-}
-
-// ---------------------------------------------------------------------------
-// 6. SCONTI
-// ---------------------------------------------------------------------------
-
-function calcolaSconti(cliente: DatiCliente, cte: CTE): number {
-  let sconti = 0
-  if (cliente.rid_attivo && cte.sconto_rid) sconti += cte.sconto_rid
-  if (cliente.fattura_elettronica && cte.sconto_fattura_elettronica) sconti += cte.sconto_fattura_elettronica
-  return sconti
+  risultati.sort((a, b) => b.risparmio_annuo - a.risparmio_annuo);
+  return risultati;
 }
 
 // ---------------------------------------------------------------------------
@@ -423,39 +357,39 @@ function calcolaSconti(cliente: DatiCliente, cte: CTE): number {
 // ---------------------------------------------------------------------------
 
 function round2(n: number): number {
-  return Math.round(n * 100) / 100
+  return Math.round(n * 100) / 100;
 }
 
 function round1(n: number): number {
-  return Math.round(n * 10) / 10
+  return Math.round(n * 10) / 10;
 }
 
 // ---------------------------------------------------------------------------
-// 8. DEFAULT per campi opzionali
+// 8. EXPORT PER VISTE (invariati)
 // ---------------------------------------------------------------------------
 
 export function stimaFasce(
   consumoTotale: number,
-  tipoCliente: TipoCliente
+  tipoCliente: TipoCliente,
 ): { f1: number; f2: number; f3: number } {
   const split =
     tipoCliente === 'business'
       ? { f1: 0.50, f2: 0.30, f3: 0.20 }
       : tipoCliente === 'domestico_non_residente'
         ? { f1: 0.40, f2: 0.35, f3: 0.25 }
-        : { f1: 0.33, f2: 0.33, f3: 0.34 }
+        : { f1: 0.33, f2: 0.33, f3: 0.34 };
 
   return {
     f1: Math.round(consumoTotale * split.f1),
     f2: Math.round(consumoTotale * split.f2),
     f3: Math.round(consumoTotale * split.f3),
-  }
+  };
 }
 
 export function stimaClasseConsumoGas(consumoSmc: number): string {
-  if (consumoSmc <= 120) return 'C1'
-  if (consumoSmc <= 480) return 'C2'
-  if (consumoSmc <= 1560) return 'C3'
-  if (consumoSmc <= 5000) return 'C4'
-  return 'C5'
+  if (consumoSmc <= 120) return 'C1';
+  if (consumoSmc <= 480) return 'C2';
+  if (consumoSmc <= 1560) return 'C3';
+  if (consumoSmc <= 5000) return 'C4';
+  return 'C5';
 }

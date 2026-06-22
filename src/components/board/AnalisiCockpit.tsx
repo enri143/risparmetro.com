@@ -868,12 +868,6 @@ export function AnalisiCockpit() {
                   />
                 </div>
               </div>
-              {spesaAnnuaLuce > 0 && (
-                <p className="text-xs text-text-muted">
-                  Spesa attuale stimata:{" "}
-                  <strong className="text-text-base">{eur(spesaAnnuaLuce)}/anno</strong>
-                </p>
-              )}
             </div>
           )}
 
@@ -936,12 +930,6 @@ export function AnalisiCockpit() {
                   />
                 </div>
               </div>
-              {spesaAnnuaGas > 0 && (
-                <p className="text-xs text-text-muted">
-                  Spesa attuale stimata:{" "}
-                  <strong className="text-text-base">{eur(spesaAnnuaGas)}/anno</strong>
-                </p>
-              )}
             </div>
           )}
 
