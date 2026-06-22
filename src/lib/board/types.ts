@@ -85,6 +85,7 @@ export interface Impostazioni {
 export interface NoteCliente {
   nomeCliente: string;
   telefono: string;
+  email?: string;
   note: string;
 }
 

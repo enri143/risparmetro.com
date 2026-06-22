@@ -10,6 +10,7 @@ import {
   ShieldCheck,
   ShieldOff,
   TrendingUp,
+  User,
   Zap,
 } from "lucide-react";
 import { ConfrontoDettagliatoView } from "./ConfrontoDettagliatoView";
@@ -356,6 +357,11 @@ export function AnalisiCockpit() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [ocrResult, setOcrResult] = useState<OcrDoneResult | null>(null);
 
+  // ── Cliente (opzionale, CRM) ──────────────────────────────────────────────────
+  const [nomeCliente, setNomeCliente] = useState("");
+  const [telefonoCliente, setTelefonoCliente] = useState("");
+  const [emailCliente, setEmailCliente] = useState("");
+
   // ── Helpers ──────────────────────────────────────────────────────────────────
   const set = (patch: Partial<DatiCliente>) => {
     setDati((d) => ({ ...d, ...patch }));
@@ -595,6 +601,41 @@ export function AnalisiCockpit() {
       if (rpcErr || !tenantId) {
         throw new Error("Sessione non collegata: configura Supabase Auth prima di salvare.");
       }
+
+      // Upsert cliente se nome compilato
+      let clienteId: string | null = null;
+      if (nomeCliente.trim()) {
+        const emailTrim = emailCliente.trim();
+        const telTrim = telefonoCliente.trim();
+        if (emailTrim || telTrim) {
+          const orParts: string[] = [];
+          if (emailTrim) orParts.push(`email.eq.${emailTrim}`);
+          if (telTrim) orParts.push(`telefono.eq.${telTrim}`);
+          const { data: esistente } = await supabase
+            .from("clienti")
+            .select("id")
+            .or(orParts.join(","))
+            .limit(1)
+            .maybeSingle();
+          if (esistente) clienteId = (esistente as { id: string }).id;
+        }
+        if (!clienteId) {
+          const { data: nuovo } = await supabase
+            .from("clienti")
+            .insert({
+              tenant_id: tenantId as string,
+              nome: nomeCliente.trim(),
+              cognome: null,
+              telefono: telefonoCliente.trim() || null,
+              email: emailCliente.trim() || null,
+              segmento: isBusiness ? "business" : "residenziale",
+            })
+            .select("id")
+            .single();
+          if (nuovo) clienteId = (nuovo as { id: string }).id;
+        }
+      }
+
       const snapshot = [
         ...risultatiLuce.map((r) => ({ ...r, _util: "luce", prezzi_snapshot: prezziMercato })),
         ...risultatiGas.map((r) => ({ ...r, _util: "gas", prezzi_snapshot: prezziMercato })),
@@ -602,6 +643,7 @@ export function AnalisiCockpit() {
       const spesaTotale = spesaAnnuaLuce + spesaAnnuaGas;
       const { error: insertErr } = await supabase.from("simulazioni").insert({
         tenant_id: tenantId as string,
+        cliente_id: clienteId,
         dati_input: {
           ...dati,
           prezzo_materia_luce: parseFloat(prezzoMateriaLuce) || undefined,
@@ -1007,7 +1049,54 @@ export function AnalisiCockpit() {
             </div>
           )}
 
-          {/* 8 — CTA */}
+          {/* 8 — Cliente (opzionale) */}
+          <div className="bg-muted/30 rounded-lg p-4 space-y-3 border border-dashed border-muted-foreground/30">
+            <div className="flex items-center gap-2 text-sm font-medium text-text-muted">
+              <User className="w-4 h-4" />
+              <span>Cliente</span>
+              <span className="text-xs opacity-70">opzionale, serve solo se vuoi salvare</span>
+            </div>
+            <div className="grid sm:grid-cols-3 gap-3">
+              <div className="relative">
+                <label className="absolute -top-2 left-3 bg-white px-1 text-[11px] font-medium text-text-muted">
+                  Nome cliente
+                </label>
+                <input
+                  type="text"
+                  value={nomeCliente}
+                  onChange={(e) => setNomeCliente(e.target.value)}
+                  className="h-12 w-full px-4 text-sm rounded-lg border border-border-ui bg-white focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand placeholder:text-text-placeholder"
+                  placeholder="Mario Rossi"
+                />
+              </div>
+              <div className="relative">
+                <label className="absolute -top-2 left-3 bg-white px-1 text-[11px] font-medium text-text-muted">
+                  Telefono
+                </label>
+                <input
+                  type="tel"
+                  value={telefonoCliente}
+                  onChange={(e) => setTelefonoCliente(e.target.value)}
+                  className="h-12 w-full px-4 text-sm rounded-lg border border-border-ui bg-white focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand placeholder:text-text-placeholder"
+                  placeholder="333 1234567"
+                />
+              </div>
+              <div className="relative">
+                <label className="absolute -top-2 left-3 bg-white px-1 text-[11px] font-medium text-text-muted">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  value={emailCliente}
+                  onChange={(e) => setEmailCliente(e.target.value)}
+                  className="h-12 w-full px-4 text-sm rounded-lg border border-border-ui bg-white focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand placeholder:text-text-placeholder"
+                  placeholder="mario@esempio.it"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* 9 — CTA */}
           <button
             type="button"
             disabled={!canCalcola}
