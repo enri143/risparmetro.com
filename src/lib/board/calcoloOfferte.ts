@@ -1,12 +1,14 @@
 // ============================================================================
-// calcoloOfferte.ts — Motore contendibile (A1.7b)
+// calcoloOfferte.ts — Motore contendibile (A1.7.1)
 //
-// Calcola solo la "parte contendibile" dell'offerta:
-//   Luce fisso / attuale: prezzo_materia × consumo + quota_fissa × 12
-//   Luce indicizzato:     (PUN + spread) × consumo × perdite_rete + quota_fissa × 12
-//   Gas:                  prezzo_materia × consumo + quota_fissa × 12
+// Calcola solo la "parte contendibile" dell'offerta (netto IVA).
+// Le viste applicano IVA via switch.
 //
-// Tutti i numeri sono NETTO IVA. Le viste applicano IVA via switch.
+// Regola prezzi luce:
+//   prezzi fissi e prezzo attuale cliente → lordo perdite (prezzo al contatore)
+//   PUN (imp.pun_riferimento) + spread  → netto perdite → × perdite_rete per
+//   ottenere il prezzo lordo (= al contatore) da usare nel calcolo.
+// Gas: nessuna perdita di rete. Tutti i prezzi gas sono già al lordo bolletta.
 // REGOLA: puro TypeScript, zero dipendenze React, zero import Supabase.
 // ============================================================================
 
@@ -34,7 +36,7 @@ export interface DatiCliente {
   potenza_impegnata_kw?: number
   tensione?: 'BT' | 'MT'
   zona_arera?: string
-  prezzo_materia_luce?: number        // €/kWh — offerta attuale del cliente
+  prezzo_materia_luce?: number        // €/kWh — lordo perdite (prezzo al contatore)
   quota_fissa_luce_mese?: number      // €/mese — quota fissa offerta attuale
   segmento_cliente?: 'residenziale' | 'business'
   residente?: boolean
@@ -60,11 +62,11 @@ export interface CTE {
   tipo_prezzo: 'fisso' | 'variabile' | 'indicizzato'
 
   // pricing luce
-  prezzo_energia_luce?: number
+  prezzo_energia_luce?: number        // €/kWh — lordo perdite
   prezzo_f1?: number
   prezzo_f2?: number
   prezzo_f3?: number
-  spread_luce?: number
+  spread_luce?: number                // €/kWh — netto perdite (aggiunto a PUN)
   quota_fissa_luce?: number           // €/mese
 
   // pricing gas
@@ -125,14 +127,14 @@ export interface RisultatoOfferta {
   durata_blocco_mesi?: number
 
   // breakdown costo annuo (parte contendibile)
-  costo_materia_energia: number       // prezzo × consumo (× perdite per luce)
+  costo_materia_energia: number       // prezzo lordo × consumo
   costo_trasporto: number             // 0 — non contendibile
   costo_oneri: number                 // 0 — non contendibile
   costo_accise: number                // 0 — non contendibile
-  imponibile: number                  // 0 — non usato in questo motore
+  imponibile: number                  // = costo_annuo_totale (alias per viste)
   iva: number                         // 0 — applicata dalla vista via switch
   quota_fissa_annua: number           // quota_fissa_mese × 12
-  sconti: number                      // 0 — non modellato in A1.7b
+  sconti: number                      // 0 — non modellato
   costo_annuo_totale: number          // costo_materia_energia + quota_fissa_annua
 
   // confronto
@@ -221,27 +223,41 @@ function mappaImpostazioni(
 }
 
 // ---------------------------------------------------------------------------
-// 5. PARTE CONTENDIBILE
-//
-// perdite_rete si applica SOLO alle offerte indicizzate (PUN/PSV sono prezzi
-// all'ingrosso — serve il fattore perdite per arrivare al contatore).
-// Prezzi fissi e prezzo attuale del cliente sono già prezzi al contatore → no perdite.
+// 5. PARTE CONTENDIBILE — helper interni
 // ---------------------------------------------------------------------------
 
 function costoContendibileLuce(
-  prezzoMateria: number,
-  consumoKwh: number,
+  prezzoLordoPerdite: number,
+  consumoAnnuoKwh: number,
   quotaFissaMese: number,
 ): number {
-  return prezzoMateria * consumoKwh + quotaFissaMese * 12;
+  return prezzoLordoPerdite * consumoAnnuoKwh + quotaFissaMese * 12;
 }
 
 function costoContendibileGas(
-  prezzoMateria: number,
-  consumoSmc: number,
+  prezzoGas: number,
+  consumoAnnuoSmc: number,
   quotaFissaMese: number,
 ): number {
-  return prezzoMateria * consumoSmc + quotaFissaMese * 12;
+  return prezzoGas * consumoAnnuoSmc + quotaFissaMese * 12;
+}
+
+// Restituisce il prezzo materia luce lordo perdite (= prezzo al contatore).
+// Fisso: già lordo perdite (quota quotata al contatore).
+// Indicizzato: PUN (netto) + spread (netto) → × perdite_rete → lordo contatore.
+function prezzoMateriaLordoLuce(cte: CTE, imp: Impostazioni): number {
+  if (cte.tipo_prezzo === 'fisso') {
+    return cte.prezzo_energia_luce ?? 0;
+  }
+  return (imp.pun_riferimento + (cte.spread_luce ?? 0)) * imp.perdite_rete;
+}
+
+// Gas: nessuna perdita di rete. Prezzi già in bolletta.
+function prezzoMateriaGas(cte: CTE, imp: Impostazioni): number {
+  if (cte.tipo_prezzo === 'fisso') {
+    return cte.prezzo_energia_gas ?? 0;
+  }
+  return imp.psv_riferimento + imp.ccr_gas + (cte.spread_gas ?? 0);
 }
 
 // ---------------------------------------------------------------------------
@@ -270,53 +286,42 @@ export function calcolaConfrontoOfferte(
       && (cliente.consumo_annuo_smc ?? 0) > 0
       && (cliente.prezzo_materia_gas ?? 0) > 0;
 
-    // ── Spesa attuale (parte contendibile) ──────────────────────────────────
-    // prezzo_materia_luce è già un prezzo al contatore → no perdite_rete
-    const spesaAttLuce = hasDatiLuce
-      ? costoContendibileLuce(
-          cliente.prezzo_materia_luce!,
-          cliente.consumo_annuo_kwh!,
-          cliente.quota_fissa_luce_mese ?? 0,
-        )
-      : 0;
-    const spesaAttGas = hasDatiGas
-      ? costoContendibileGas(
-          cliente.prezzo_materia_gas!,
-          cliente.consumo_annuo_smc!,
-          cliente.quota_fissa_gas_mese ?? 0,
-        )
-      : 0;
+    if (!hasDatiLuce && !hasDatiGas) continue;
 
-    // ── Prezzo materia dell'offerta ─────────────────────────────────────────
-    const isFisso = cte.tipo_prezzo === 'fisso';
+    let spesaAttuale = 0;
+    let costoOfferta = 0;
+    let materiaOffertaAnno = 0;
+    let quotaFissaOffertaAnno = 0;
 
-    const prezzoLuce = isFisso
-      ? (cte.prezzo_energia_luce ?? 0)
-      : imp.pun_riferimento + (cte.spread_luce ?? 0);
+    if (hasDatiLuce) {
+      spesaAttuale += costoContendibileLuce(
+        cliente.prezzo_materia_luce!,
+        cliente.consumo_annuo_kwh!,
+        cliente.quota_fissa_luce_mese ?? 0,
+      );
+      const prezzoOffertaLuce = prezzoMateriaLordoLuce(cte, imp);
+      const materia = prezzoOffertaLuce * cliente.consumo_annuo_kwh!;
+      const qf = (cte.quota_fissa_luce ?? 0) * 12;
+      materiaOffertaAnno += materia;
+      quotaFissaOffertaAnno += qf;
+      costoOfferta += materia + qf;
+    }
 
-    const prezzoGas = isFisso
-      ? (cte.prezzo_energia_gas ?? 0)
-      : imp.psv_riferimento + imp.ccr_gas + (cte.spread_gas ?? 0);
+    if (hasDatiGas) {
+      spesaAttuale += costoContendibileGas(
+        cliente.prezzo_materia_gas!,
+        cliente.consumo_annuo_smc!,
+        cliente.quota_fissa_gas_mese ?? 0,
+      );
+      const prezzoOffertaGas = prezzoMateriaGas(cte, imp);
+      const materia = prezzoOffertaGas * cliente.consumo_annuo_smc!;
+      const qf = (cte.quota_fissa_gas ?? 0) * 12;
+      materiaOffertaAnno += materia;
+      quotaFissaOffertaAnno += qf;
+      costoOfferta += materia + qf;
+    }
 
-    // ── Costo offerta (parte contendibile) ──────────────────────────────────
-    // Fisso → prezzo già al contatore. Indicizzato → PUN/PSV wholesale × perdite_rete
-    const materiaLuce = hasDatiLuce
-      ? isFisso
-        ? prezzoLuce * cliente.consumo_annuo_kwh!
-        : prezzoLuce * cliente.consumo_annuo_kwh! * imp.perdite_rete
-      : 0;
-    const quotaLuce = hasDatiLuce ? (cte.quota_fissa_luce ?? 0) * 12 : 0;
-    const costoOffLuce = materiaLuce + quotaLuce;
-
-    const materiaGas = hasDatiGas
-      ? prezzoGas * cliente.consumo_annuo_smc!
-      : 0;
-    const quotaGas = hasDatiGas ? (cte.quota_fissa_gas ?? 0) * 12 : 0;
-    const costoOffGas = materiaGas + quotaGas;
-
-    const costoTotale = costoOffLuce + costoOffGas;
-    const spesaTotale = spesaAttLuce + spesaAttGas;
-    const risparmio   = spesaTotale - costoTotale;
+    const risparmio = spesaAttuale - costoOfferta;
 
     risultati.push({
       cte_id: cte.id,
@@ -326,19 +331,19 @@ export function calcolaConfrontoOfferte(
       tipo_prezzo: cte.tipo_prezzo,
       durata_blocco_mesi: cte.durata_blocco_mesi,
 
-      costo_materia_energia: round2(materiaLuce + materiaGas),
+      costo_materia_energia: round2(materiaOffertaAnno),
       costo_trasporto:       0,
       costo_oneri:           0,
       costo_accise:          0,
-      imponibile:            0,
+      imponibile:            round2(costoOfferta),
       iva:                   0,
-      quota_fissa_annua:     round2(quotaLuce + quotaGas),
+      quota_fissa_annua:     round2(quotaFissaOffertaAnno),
       sconti:                0,
-      costo_annuo_totale:    round2(costoTotale),
+      costo_annuo_totale:    round2(costoOfferta),
 
       risparmio_annuo:       round2(risparmio),
-      risparmio_percentuale: spesaTotale > 0
-        ? round1((risparmio / spesaTotale) * 100)
+      risparmio_percentuale: spesaAttuale > 0
+        ? round1((risparmio / spesaAttuale) * 100)
         : 0,
 
       provvigione:         cte.provvigione,
