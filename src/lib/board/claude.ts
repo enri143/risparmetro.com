@@ -3,16 +3,17 @@ export interface CTEEstratta {
   fornitore: string;
   tipo: "luce" | "gas";
   segmento: "family" | "business";
-  tipo_prezzo: "fisso" | "index";
-  prezzo_fisso: number | null;
+  tipo_prezzo: "fisso" | "index" | "hybrid";
+  prezzo_materia_prima: number | null;
   indice: "PUN" | "PSV" | null;
+  moltiplicatore_indice: number;
   spread: number | null;
-  tipo_pun?: "monorario" | "fasce" | null;
-  commercializzazione_anno: number;
-  cvv_variabile: number;
-  dispacciamento_kwh?: number;
-  penale_recesso: boolean;
-  validita: string;
+  quota_fissa_mese: number | null;
+  dispacciamento_extra_kwh: number | null;
+  durata_mesi: number | null;
+  prezzo_dopo_durata: string | null;
+  scadenza_sottoscrizione: string | null;
+  componenti_venditore: { label: string; valore: string }[];
   note: string;
 }
 

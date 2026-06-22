@@ -7,10 +7,17 @@ import { fileToBase64, type CTEEstratta } from "@/lib/board/claude";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-
 type Stato = "idle" | "analizzando" | "ok" | "errore";
 interface Estratto { dati: CTEEstratta; conferma: boolean; }
 interface Riga { file: File; stato: Stato; estratti: Estratto[]; errore?: string; }
+
+function parseScadenza(s: string | null): string | null {
+  if (!s) return null;
+  const m = s.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+  if (!m) return null;
+  return `${m[3]}-${m[2]}-${m[1]}`;
+}
+
 
 export function UploadPdfFlow({ open, onClose, onSaved }: { open: boolean; onClose: () => void; onSaved: () => void }) {
   const [righe, setRighe] = useState<Riga[]>([]);
@@ -27,10 +34,7 @@ export function UploadPdfFlow({ open, onClose, onSaved }: { open: boolean; onClo
 
   const analizzaTutti = async () => {
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      toast.error("Sessione scaduta — effettua di nuovo il login");
-      return;
-    }
+    if (!session) { toast.error("Sessione scaduta — effettua di nuovo il login"); return; }
     setRighe((r) => r.map((x) => x.stato === "ok" ? x : { ...x, stato: "analizzando" }));
     for (let i = 0; i < righe.length; i++) {
       if (righe[i].stato === "ok") continue;
@@ -63,26 +67,59 @@ export function UploadPdfFlow({ open, onClose, onSaved }: { open: boolean; onClo
   };
 
   const salva = async () => {
-    const { normalizzaCodiceSG } = await import("@/lib/board/sgCodice");
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { toast.error("Sessione scaduta — effettua di nuovo il login"); return; }
+
+    const { data: membership } = await supabase
+      .from("tenant_members")
+      .select("tenant_id")
+      .eq("user_id", user.id)
+      .limit(1)
+      .maybeSingle();
+    if (!membership?.tenant_id) { toast.error("Tenant non trovato per questo utente"); return; }
+    const tenantId = membership.tenant_id;
+
+    const { data: fornitori } = await supabase.from("fornitori").select("id, nome");
+    const fid = (nome: string): string | null => {
+      const n = nome.trim().toLowerCase();
+      return fornitori?.find((f) => f.nome.trim().toLowerCase() === n)?.id ?? null;
+    };
+
     const payload = righe
       .filter((r) => r.stato === "ok")
-      .flatMap((r) => {
-        const baseNome = r.file.name.replace(/\.[a-z0-9]{1,5}$/i, "");
-        const codiceFromFile = normalizzaCodiceSG(r.file.name);
-        return r.estratti.filter((e) => e.conferma).map((e) => {
-          const out = { ...e.dati, attiva: true } as CTEEstratta & { attiva: boolean; codice_offerta?: string | null };
-          if (!out.codice_offerta && /sg\s*energia/i.test(String(e.dati.fornitore ?? ""))) {
-            out.codice_offerta = normalizzaCodiceSG(String(e.dati.nome ?? "")) ?? codiceFromFile ?? baseNome;
-          }
-          return out;
-        });
-      });
+      .flatMap((r) =>
+        r.estratti.filter((e) => e.conferma).map((e) => {
+          const d = e.dati;
+          const isLuce = d.tipo === "luce";
+          const tipoPrezzo = d.tipo_prezzo === "index" ? "indicizzato" : "fisso";
+          return {
+            tenant_id: tenantId,
+            fornitore_id: fid(d.fornitore),
+            nome: d.nome,
+            tipo_fornitura: d.tipo,
+            segmento: d.segmento === "business" ? "business" : "residenziale",
+            tipo_prezzo: tipoPrezzo,
+            prezzo_energia_luce: isLuce ? d.prezzo_materia_prima : null,
+            spread_luce: isLuce ? d.spread : null,
+            quota_fissa_luce: isLuce ? (d.quota_fissa_mese ?? null) : null,
+            prezzo_energia_gas: !isLuce ? d.prezzo_materia_prima : null,
+            spread_gas: !isLuce ? d.spread : null,
+            quota_fissa_gas: !isLuce ? (d.quota_fissa_mese ?? null) : null,
+            durata_blocco_mesi: d.durata_mesi ?? null,
+            valida_a: parseScadenza(d.scadenza_sottoscrizione),
+            componenti_venditore: d.componenti_venditore ?? [],
+            target_note: d.note || null,
+            attiva: true,
+          };
+        })
+      );
+
     if (!payload.length) return;
     setSalvando(true);
     const { error } = await supabase.from("cte").insert(payload);
     setSalvando(false);
     if (error) { toast.error("Errore salvataggio: " + error.message); return; }
-    toast.success(`${payload.length} offerte salvate`);
+    toast.success(`${payload.length} offert${payload.length === 1 ? "a salvata" : "e salvate"}`);
     setRighe([]);
     onSaved();
     onClose();
@@ -124,16 +161,83 @@ export function UploadPdfFlow({ open, onClose, onSaved }: { open: boolean; onClo
                 {r.estratti.map((e, j) => (
                   <div key={j} className="grid sm:grid-cols-2 gap-2 pt-2 border-t">
                     <div className="sm:col-span-2 text-xs font-semibold uppercase text-muted-foreground">
-                      Offerta {j + 1} — {e.dati.tipo}
+                      Offerta {j + 1} — {e.dati.tipo} · {e.dati.tipo_prezzo}
                     </div>
                     <Input placeholder="Nome" value={e.dati.nome ?? ""} onChange={(ev) => aggiornaCampo(i, j, "nome", ev.target.value)} />
                     <Input placeholder="Fornitore" value={e.dati.fornitore ?? ""} onChange={(ev) => aggiornaCampo(i, j, "fornitore", ev.target.value)} />
-                    <Input placeholder="Comm. annua" type="number" value={e.dati.commercializzazione_anno ?? 0} onChange={(ev) => aggiornaCampo(i, j, "commercializzazione_anno", parseFloat(ev.target.value) || 0)} />
-                    <Input placeholder="Validità" value={e.dati.validita ?? ""} onChange={(ev) => aggiornaCampo(i, j, "validita", ev.target.value)} />
-                    <div className="sm:col-span-2 text-xs text-muted-foreground">
-                      {e.dati.tipo} · {e.dati.segmento} · {e.dati.tipo_prezzo}
-                      {e.dati.tipo_prezzo === "fisso" ? ` · ${e.dati.prezzo_fisso} €` : ` · ${e.dati.indice} + ${e.dati.spread}`}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <label className="block text-[10px] uppercase tracking-wide text-muted-foreground">
+                          {e.dati.tipo_prezzo === "fisso"
+                            ? `Prezzo fisso €/${e.dati.tipo === "luce" ? "kWh" : "Smc"}`
+                            : `Spread €/${e.dati.tipo === "luce" ? "kWh" : "Smc"}`}
+                        </label>
+                        <Input
+                          type="number"
+                          step="0.0001"
+                          value={
+                            e.dati.tipo_prezzo === "fisso"
+                              ? e.dati.prezzo_materia_prima ?? ""
+                              : e.dati.spread ?? ""
+                          }
+                          onChange={(ev) =>
+                            aggiornaCampo(
+                              i,
+                              j,
+                              e.dati.tipo_prezzo === "fisso" ? "prezzo_materia_prima" : "spread",
+                              ev.target.value === "" ? null : parseFloat(ev.target.value)
+                            )
+                          }
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="block text-[10px] uppercase tracking-wide text-muted-foreground">
+                          Quota fissa €/mese
+                        </label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={e.dati.quota_fissa_mese ?? ""}
+                          onChange={(ev) =>
+                            aggiornaCampo(i, j, "quota_fissa_mese", ev.target.value === "" ? null : parseFloat(ev.target.value))
+                          }
+                        />
+                      </div>
                     </div>
+                    <Input
+                      placeholder="Scadenza sottoscrizione (GG/MM/AAAA)"
+                      value={e.dati.scadenza_sottoscrizione ?? ""}
+                      onChange={(ev) => aggiornaCampo(i, j, "scadenza_sottoscrizione", ev.target.value || null)}
+                    />
+                    <div className="sm:col-span-2 text-xs text-muted-foreground space-y-0.5">
+                      <div>
+                        {e.dati.segmento} ·{" "}
+                        {e.dati.tipo_prezzo === "fisso"
+                          ? `${e.dati.prezzo_materia_prima} €/${e.dati.tipo === "luce" ? "kWh" : "Smc"} fisso`
+                          : e.dati.tipo_prezzo === "hybrid"
+                            ? `≤soglia: ${e.dati.prezzo_materia_prima} €/${e.dati.tipo === "luce" ? "kWh" : "Smc"} · eccedenza: ${e.dati.indice}×${e.dati.moltiplicatore_indice ?? 1}+${e.dati.spread}`
+                            : `${e.dati.indice}×${e.dati.moltiplicatore_indice ?? 1} + ${e.dati.spread} €/${e.dati.tipo === "luce" ? "kWh" : "Smc"}`}
+                        {e.dati.durata_mesi ? ` · ${e.dati.durata_mesi}m` : ""}
+                      </div>
+                      {e.dati.dispacciamento_extra_kwh != null && (
+                        <div className="text-orange-600">Disp. venditore: +{e.dati.dispacciamento_extra_kwh} €/kWh</div>
+                      )}
+                    </div>
+                    {(e.dati.componenti_venditore?.length ?? 0) > 0 && (
+                      <details className="sm:col-span-2 text-xs">
+                        <summary className="cursor-pointer text-muted-foreground hover:text-foreground select-none">
+                          Dettaglio venditore ({e.dati.componenti_venditore.length})
+                        </summary>
+                        <div className="mt-1 space-y-0.5 pl-2 border-l border-border">
+                          {e.dati.componenti_venditore.map((v, vi) => (
+                            <div key={vi} className="flex gap-2">
+                              <span className="font-medium min-w-0">{v.label}:</span>
+                              <span className="text-muted-foreground">{v.valore}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+                    )}
                     {e.dati.note && <div className="sm:col-span-2 text-xs italic text-muted-foreground">{e.dati.note}</div>}
                     <label className="flex items-center gap-2 text-sm sm:col-span-2">
                       <input type="checkbox" checked={e.conferma} onChange={(ev) => toggleConferma(i, j, ev.target.checked)} />

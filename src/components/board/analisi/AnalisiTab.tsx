@@ -39,6 +39,7 @@ interface SupabaseCteRow {
   provvigione_tipo: string | null;
   durata_blocco_mesi: number | null;
   fornitori: { nome: string; colore: string | null } | null;
+  componenti_venditore?: { label: string; valore: string }[];
 }
 
 interface ZonaRow {

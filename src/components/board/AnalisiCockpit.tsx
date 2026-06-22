@@ -55,6 +55,7 @@ interface SupabaseCteRow {
   provvigione_tipo: string | null;
   durata_blocco_mesi: number | null;
   fornitori: { nome: string; colore: string | null } | null;
+  componenti_venditore?: { label: string; valore: string }[];
 }
 
 interface ZonaRow {
@@ -307,7 +308,7 @@ export function AnalisiCockpit() {
     pun_medio: 0.115,
     psv_medio: 0.42,
   });
-  const [parametriLuce, setParametriLuce] = useState<ParametriRegolati | null>(null);
+  const [parametriLuce] = useState<ParametriRegolati | null>(null);
   const [parametriGas, setParametriGas] = useState<ParametriRegolati | null>(null);
   const [areraLuce, setAreraLuce] = useState<ParametriAreraLuce | null>(null);
   const [loadingData, setLoadingData] = useState(true);
