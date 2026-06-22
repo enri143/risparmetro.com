@@ -61,6 +61,7 @@ const BASE_PROPS = {
   spesaAnnuaGas: 0,
   onBack: vi.fn(),
   onToggleClientMode: vi.fn(),
+  onToggleShowProvvigioni: vi.fn(),
   selectedCteId: null,
   onSelectCte: vi.fn(),
 };
@@ -76,8 +77,8 @@ async function espandiDettagli() {
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe("clientMode leak guard — ConfrontoDettagliatoView", () => {
-  it("clientMode=true: dopo espansione NESSUN nodo contiene 'Provvigion' nel DOM", async () => {
-    render(<ConfrontoDettagliatoView {...BASE_PROPS} clientMode={true} />);
+  it("clientMode=true + showProvvigioni=true: dopo espansione NESSUN nodo contiene 'Provvigion' nel DOM", async () => {
+    render(<ConfrontoDettagliatoView {...BASE_PROPS} clientMode={true} showProvvigioni={true} />);
     await espandiDettagli();
 
     // Regex copre "Provvigione", "Provvigioni", ecc.
@@ -85,19 +86,30 @@ describe("clientMode leak guard — ConfrontoDettagliatoView", () => {
     expect(screen.queryByText(/Condizioni Agente/i)).toBeNull();
   });
 
-  it("clientMode=true: dopo espansione il valore provvigione (50 €) non appare", async () => {
+  it("clientMode=true + showProvvigioni=true: dopo espansione il valore provvigione (50 €) non appare", async () => {
     const { container } = render(
-      <ConfrontoDettagliatoView {...BASE_PROPS} clientMode={true} />,
+      <ConfrontoDettagliatoView {...BASE_PROPS} clientMode={true} showProvvigioni={true} />,
     );
     await espandiDettagli();
     expect(container.textContent).not.toMatch(/50,00/);
   });
 
-  it("clientMode=false (agente): dopo espansione 'Condizioni Agente' e 'Provvigione' visibili", async () => {
-    render(<ConfrontoDettagliatoView {...BASE_PROPS} clientMode={false} />);
+  it("clientMode=false + showProvvigioni=true (agente): dopo espansione 'Condizioni Agente' e 'Provvigione' visibili", async () => {
+    render(<ConfrontoDettagliatoView {...BASE_PROPS} clientMode={false} showProvvigioni={true} />);
     await espandiDettagli();
 
+    // "Condizioni Agente" è unico (non appare in bottoni)
     expect(screen.queryByText(/Condizioni Agente/i)).not.toBeNull();
-    expect(screen.queryByText(/Provvigion/i)).not.toBeNull();
+    // "Provvigione" (exact) è la label del campo — diverso da "Provvigioni: ON/OFF" nel toggle
+    expect(screen.queryByText("Provvigione")).not.toBeNull();
+  });
+
+  it("clientMode=false + showProvvigioni=false: dopo espansione sezione agente NON presente (toggle off)", async () => {
+    render(<ConfrontoDettagliatoView {...BASE_PROPS} clientMode={false} showProvvigioni={false} />);
+    await espandiDettagli();
+
+    expect(screen.queryByText(/Condizioni Agente/i)).toBeNull();
+    // "Provvigione" (exact) — il bottone "Provvigioni: OFF" NON matcha questa stringa esatta
+    expect(screen.queryByText("Provvigione")).toBeNull();
   });
 });

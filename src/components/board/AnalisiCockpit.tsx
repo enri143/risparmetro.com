@@ -350,6 +350,7 @@ export function AnalisiCockpit() {
   const [presentationMode, setPresentationMode] = useState(false);
   const [showDettagliato, setShowDettagliato] = useState(false);
   const [clientMode, setClientMode] = useState(false);
+  const [showProvvigioni, setShowProvvigioni] = useState(true);
   const [selectedCteId, setSelectedCteId] = useState<string | null>(null);
   const [showMaxi, setShowMaxi] = useState(false);
   const [maxiRevealMode, setMaxiRevealMode] = useState(false);
@@ -694,6 +695,8 @@ export function AnalisiCockpit() {
         onBack={() => setShowDettagliato(false)}
         clientMode={clientMode}
         onToggleClientMode={() => setClientMode((v) => !v)}
+        showProvvigioni={showProvvigioni}
+        onToggleShowProvvigioni={() => setShowProvvigioni((v) => !v)}
         selectedCteId={selectedCteId}
         onSelectCte={setSelectedCteId}
       />

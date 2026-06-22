@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ArrowLeft, CheckCircle2, ChevronDown, FileDown, Flame, Loader2, ShieldCheck, ShieldOff, Zap } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ChevronDown, Eye, EyeOff, FileDown, Flame, Loader2, ShieldCheck, ShieldOff, Zap } from "lucide-react";
 import { generateReport } from "@/lib/pdf/generateReport";
 import { cn } from "@/lib/utils";
 import { eur, eurUnit } from "@/lib/board/formatters";
@@ -51,6 +51,7 @@ function OfferDettaglioCard({
   spesaAnnuaLuce,
   spesaAnnuaGas,
   clientMode,
+  showProvvigioni = true,
   isSelected,
   onSelect,
 }: {
@@ -64,6 +65,7 @@ function OfferDettaglioCard({
   spesaAnnuaLuce: number;
   spesaAnnuaGas: number;
   clientMode?: boolean;
+  showProvvigioni?: boolean;
   isSelected?: boolean;
   onSelect?: () => void;
 }) {
@@ -280,8 +282,8 @@ function OfferDettaglioCard({
                 </div>
               </div>
 
-              {/* Agent-only section — nascosta in clientMode */}
-              {!clientMode && (r.provvigione !== undefined ||
+              {/* Agent-only section — nascosta in clientMode o se showProvvigioni=false */}
+              {!clientMode && showProvvigioni && (r.provvigione !== undefined ||
                 r.mesi_storno_rischio !== undefined ||
                 r.durata_blocco_mesi !== undefined) && (
                 <div className="bg-surface-subtle border border-border-ui rounded-xl p-4">
@@ -340,6 +342,8 @@ export function ConfrontoDettagliatoView({
   onBack,
   clientMode,
   onToggleClientMode,
+  showProvvigioni = true,
+  onToggleShowProvvigioni,
   selectedCteId,
   onSelectCte,
 }: {
@@ -354,6 +358,8 @@ export function ConfrontoDettagliatoView({
   onBack: () => void;
   clientMode?: boolean;
   onToggleClientMode?: () => void;
+  showProvvigioni?: boolean;
+  onToggleShowProvvigioni?: () => void;
   selectedCteId?: string | null;
   onSelectCte?: (id: string) => void;
 }) {
@@ -395,25 +401,46 @@ export function ConfrontoDettagliatoView({
             <ArrowLeft className="w-4 h-4" />
             Torna al riepilogo
           </button>
-          {onToggleClientMode && (
-            <button
-              type="button"
-              onClick={onToggleClientMode}
-              className={cn(
-                "flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-medium transition-all min-h-[44px]",
-                clientMode
-                  ? "bg-surface-subtle text-text-base border-border-ui shadow-sm"
-                  : "bg-white text-text-muted border-border-ui hover:bg-surface-subtle",
-              )}
-            >
-              {clientMode ? (
-                <ShieldCheck className="w-4 h-4 text-savings" />
-              ) : (
-                <ShieldOff className="w-4 h-4" />
-              )}
-              {clientMode ? "Modalità Cliente" : "Agente"}
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {onToggleClientMode && (
+              <button
+                type="button"
+                onClick={onToggleClientMode}
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-medium transition-all min-h-[44px]",
+                  clientMode
+                    ? "bg-surface-subtle text-text-base border-border-ui shadow-sm"
+                    : "bg-white text-text-muted border-border-ui hover:bg-surface-subtle",
+                )}
+              >
+                {clientMode ? (
+                  <ShieldCheck className="w-4 h-4 text-savings" />
+                ) : (
+                  <ShieldOff className="w-4 h-4" />
+                )}
+                {clientMode ? "Modalità Cliente" : "Agente"}
+              </button>
+            )}
+            {onToggleShowProvvigioni && !clientMode && (
+              <button
+                type="button"
+                onClick={onToggleShowProvvigioni}
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-medium transition-all min-h-[44px]",
+                  showProvvigioni
+                    ? "bg-surface-subtle text-text-base border-border-ui shadow-sm"
+                    : "bg-white text-text-muted border-border-ui hover:bg-surface-subtle",
+                )}
+              >
+                {showProvvigioni ? (
+                  <Eye className="w-4 h-4" />
+                ) : (
+                  <EyeOff className="w-4 h-4" />
+                )}
+                {showProvvigioni ? "Provvigioni: ON" : "Provvigioni: OFF"}
+              </button>
+            )}
+          </div>
         </div>
         <h1 className="text-2xl font-bold text-text-base">Confronto Offerte Dettagliato</h1>
         <p className="text-sm text-text-muted mt-1">
@@ -459,6 +486,7 @@ export function ConfrontoDettagliatoView({
               spesaAnnuaLuce={spesaAnnuaLuce}
               spesaAnnuaGas={spesaAnnuaGas}
               clientMode={clientMode}
+              showProvvigioni={showProvvigioni}
               isSelected={selectedCteId === r.cte_id}
               onSelect={onSelectCte ? () => onSelectCte(r.cte_id) : undefined}
             />
