@@ -5,6 +5,7 @@ import {
   Eye,
   Flame,
   Maximize2,
+  RotateCcw,
   Save,
   Search,
   ShieldCheck,
@@ -351,6 +352,7 @@ export function AnalisiCockpit() {
   const [clientMode, setClientMode] = useState(false);
   const [selectedCteId, setSelectedCteId] = useState<string | null>(null);
   const [showMaxi, setShowMaxi] = useState(false);
+  const [maxiRevealMode, setMaxiRevealMode] = useState(false);
   const [trattativaOfferta, setTrattativaOfferta] = useState<RisultatoOfferta | null>(null);
   const [savingSimulazione, setSavingSimulazione] = useState(false);
   const [saveOk, setSaveOk] = useState(false);
@@ -706,6 +708,7 @@ export function AnalisiCockpit() {
           luce={risultatiLuce}
           gas={risultatiGas}
           onClose={() => setShowMaxi(false)}
+          revealMode={maxiRevealMode}
         />
       )}
       {trattativaOfferta && (
@@ -755,12 +758,22 @@ export function AnalisiCockpit() {
             </button>
             <button
               type="button"
-              onClick={() => setShowMaxi(true)}
+              onClick={() => { setMaxiRevealMode(false); setShowMaxi(true); }}
               className="flex items-center gap-2 px-4 py-2 rounded-full border border-border-ui bg-white text-text-base text-sm font-medium hover:bg-surface-subtle transition-all min-h-[44px]"
             >
               <Maximize2 className="w-4 h-4" />
               Maxi
             </button>
+            {totalRisparmio > 0 && (
+              <button
+                type="button"
+                onClick={() => { setMaxiRevealMode(true); setShowMaxi(true); }}
+                className="flex items-center gap-2 px-4 py-2 rounded-full border border-border-ui bg-white text-text-base text-sm font-medium hover:bg-surface-subtle transition-all min-h-[44px]"
+              >
+                <RotateCcw className="w-4 h-4" />
+                Gira il tablet
+              </button>
+            )}
           </div>
         )}
       </div>
