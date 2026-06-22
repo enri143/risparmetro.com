@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Flame, Zap } from "lucide-react";
+import { Proiezione12Mesi } from "./analisi/Proiezione12Mesi";
 import { cn } from "@/lib/utils";
 import { eur } from "@/lib/board/formatters";
 import {
@@ -356,6 +357,26 @@ export function PresentazioneView({
               spesaDisplay={spesaGasDisplay}
               costoDisplay={costoGasDisplay}
               risparmioDisplay={risparmioGasDisplay}
+            />
+          )}
+        </div>
+      )}
+
+      {/* Proiezione 12 mesi — miglior offerta per utility */}
+      {(showLuceCard || showGasCard) && (
+        <div className={cn("grid gap-5", showLuceCard && showGasCard ? "md:grid-cols-2" : "")}>
+          {showLuceCard && (
+            <Proiezione12Mesi
+              spesaAnnua={spesaAnnuaLuce}
+              costoOfferta={bestLuce.costo_annuo_totale}
+              nomeOfferta={bestLuce.nome}
+            />
+          )}
+          {showGasCard && (
+            <Proiezione12Mesi
+              spesaAnnua={spesaAnnuaGas}
+              costoOfferta={bestGas.costo_annuo_totale}
+              nomeOfferta={bestGas.nome}
             />
           )}
         </div>
