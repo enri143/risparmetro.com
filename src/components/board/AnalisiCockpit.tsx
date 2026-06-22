@@ -360,7 +360,7 @@ export function AnalisiCockpit() {
   // ── Cliente (opzionale, CRM) ──────────────────────────────────────────────────
   const [nomeCliente, setNomeCliente] = useState("");
   const [telefonoCliente, setTelefonoCliente] = useState("");
-  const [emailCliente, setEmailCliente] = useState("");
+  const [noteCliente, setNoteCliente] = useState("");
 
   // ── Helpers ──────────────────────────────────────────────────────────────────
   const set = (patch: Partial<DatiCliente>) => {
@@ -605,16 +605,12 @@ export function AnalisiCockpit() {
       // Upsert cliente se nome compilato
       let clienteId: string | null = null;
       if (nomeCliente.trim()) {
-        const emailTrim = emailCliente.trim();
         const telTrim = telefonoCliente.trim();
-        if (emailTrim || telTrim) {
-          const orParts: string[] = [];
-          if (emailTrim) orParts.push(`email.eq.${emailTrim}`);
-          if (telTrim) orParts.push(`telefono.eq.${telTrim}`);
+        if (telTrim) {
           const { data: esistente } = await supabase
             .from("clienti")
             .select("id")
-            .or(orParts.join(","))
+            .eq("telefono", telTrim)
             .limit(1)
             .maybeSingle();
           if (esistente) clienteId = (esistente as { id: string }).id;
@@ -626,8 +622,7 @@ export function AnalisiCockpit() {
               tenant_id: tenantId as string,
               nome: nomeCliente.trim(),
               cognome: null,
-              telefono: telefonoCliente.trim() || null,
-              email: emailCliente.trim() || null,
+              telefono: telTrim || null,
               segmento: isBusiness ? "business" : "residenziale",
             })
             .select("id")
@@ -651,6 +646,7 @@ export function AnalisiCockpit() {
           prezzo_materia_gas: parseFloat(prezzoMateriaGas) || undefined,
           quota_fissa_gas_mese: parseFloat(quotaFissaGasAtt) || undefined,
           prezzi_mercato: prezziMercato,
+          nota_cliente: noteCliente.trim() || null,
         },
         snapshot_offerte: snapshot,
         offerta_scelta_id: selectedCteId ?? null,
@@ -1083,14 +1079,14 @@ export function AnalisiCockpit() {
               </div>
               <div className="relative">
                 <label className="absolute -top-2 left-3 bg-white px-1 text-[11px] font-medium text-text-muted">
-                  Email
+                  Note
                 </label>
                 <input
-                  type="email"
-                  value={emailCliente}
-                  onChange={(e) => setEmailCliente(e.target.value)}
+                  type="text"
+                  value={noteCliente}
+                  onChange={(e) => setNoteCliente(e.target.value)}
                   className="h-12 w-full px-4 text-sm rounded-lg border border-border-ui bg-white focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand placeholder:text-text-placeholder"
-                  placeholder="mario@esempio.it"
+                  placeholder="es. vuole offerta verde"
                 />
               </div>
             </div>
