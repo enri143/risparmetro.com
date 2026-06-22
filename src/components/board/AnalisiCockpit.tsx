@@ -54,9 +54,12 @@ interface SupabaseCteRow {
   provvigione_override: number | null;
   provvigione_tipo: string | null;
   durata_blocco_mesi: number | null;
+  segmento: "residenziale" | "business" | "entrambi";
   fornitori: { nome: string; colore: string | null } | null;
   componenti_venditore?: { label: string; valore: string }[];
 }
+
+type CTEConSegmento = CTE & { segmento_cliente?: "residenziale" | "business" | "entrambi" };
 
 interface ZonaRow {
   id: string;
@@ -70,7 +73,7 @@ type ResidenzaSeg = "residente" | "non_residente";
 
 // ── Adapter ───────────────────────────────────────────────────────────────────
 
-function adaptCte(row: SupabaseCteRow): CTE {
+function adaptCte(row: SupabaseCteRow): CTEConSegmento {
   return {
     id: row.id,
     nome: row.nome,
@@ -89,6 +92,7 @@ function adaptCte(row: SupabaseCteRow): CTE {
     provvigione_tipo: (row.provvigione_tipo as "fisso" | "percentuale") ?? undefined,
     mesi_storno_rischio: row.mesi_storno_rischio ?? undefined,
     priorita: row.priorita,
+    segmento_cliente: row.segmento,
   };
 }
 
@@ -534,12 +538,16 @@ export function AnalisiCockpit() {
         prezzo_materia_gas: 0,
         quota_fissa_gas_mese: 0,
       },
-      ctes.filter((c) => c.tipo_fornitura === "luce"),
+      ctes.filter((c) =>
+        c.tipo_fornitura === "luce" &&
+        (c.segmento_cliente === "entrambi" || c.segmento_cliente === undefined ||
+          (clienteSeg === "domestico" ? c.segmento_cliente === "residenziale" : c.segmento_cliente === "business"))
+      ),
       effParamLuce,
       null,
       effPrezzi,
     );
-  }, [showResults, showLuce, dati, tipoCliente, prezzoMateriaLuce, quotaFissaLuceAtt, ctes, parametriLuce, prezziMercato, areraLuce]);
+  }, [showResults, showLuce, dati, tipoCliente, clienteSeg, prezzoMateriaLuce, quotaFissaLuceAtt, ctes, parametriLuce, prezziMercato, areraLuce]);
 
   const risultatiGas = useMemo(() => {
     if (!showResults || !showGas || !(dati.consumo_annuo_smc ?? 0)) return [];
@@ -552,12 +560,16 @@ export function AnalisiCockpit() {
         prezzo_materia_luce: 0,
         quota_fissa_luce_mese: 0,
       },
-      ctes.filter((c) => c.tipo_fornitura === "gas"),
+      ctes.filter((c) =>
+        c.tipo_fornitura === "gas" &&
+        (c.segmento_cliente === "entrambi" || c.segmento_cliente === undefined ||
+          (clienteSeg === "domestico" ? c.segmento_cliente === "residenziale" : c.segmento_cliente === "business"))
+      ),
       null,
       parametriGas ?? FALLBACK_GAS,
       prezziMercato,
     );
-  }, [showResults, showGas, dati, tipoCliente, prezzoMateriaGas, quotaFissaGasAtt, ctes, parametriGas, prezziMercato]);
+  }, [showResults, showGas, dati, tipoCliente, clienteSeg, prezzoMateriaGas, quotaFissaGasAtt, ctes, parametriGas, prezziMercato]);
 
   const haDatiAttualiLuce = (parseFloat(prezzoMateriaLuce) || 0) > 0 && (parseFloat(quotaFissaLuceAtt) || 0) >= 0;
   const haDatiAttualiGas  = (parseFloat(prezzoMateriaGas)  || 0) > 0 && (parseFloat(quotaFissaGasAtt)  || 0) >= 0;

@@ -38,9 +38,12 @@ interface SupabaseCteRow {
   provvigione_override: number | null;
   provvigione_tipo: string | null;
   durata_blocco_mesi: number | null;
+  segmento: "residenziale" | "business" | "entrambi";
   fornitori: { nome: string; colore: string | null } | null;
   componenti_venditore?: { label: string; valore: string }[];
 }
+
+type CTEConSegmento = CTE & { segmento_cliente?: "residenziale" | "business" | "entrambi" };
 
 interface ZonaRow {
   id: string;
@@ -51,7 +54,7 @@ interface ZonaRow {
 
 // ─── Adapter Supabase → tipo CTE del motore ──────────────────────────────────
 
-function adaptCte(row: SupabaseCteRow): CTE {
+function adaptCte(row: SupabaseCteRow): CTEConSegmento {
   return {
     id: row.id,
     nome: row.nome,
@@ -70,6 +73,7 @@ function adaptCte(row: SupabaseCteRow): CTE {
     provvigione_tipo: (row.provvigione_tipo as "fisso" | "percentuale") ?? undefined,
     mesi_storno_rischio: row.mesi_storno_rischio ?? undefined,
     priorita: row.priorita,
+    segmento_cliente: row.segmento,
   };
 }
 
@@ -407,7 +411,11 @@ export function AnalisiTab() {
     if (!showResults || !parametriLuce || !dati.consumo_annuo_kwh) return [];
     return calcolaConfrontoOfferte(
       { ...dati, prezzo_materia_gas: 0, quota_fissa_gas_mese: 0 },
-      ctes.filter((c) => c.tipo_fornitura === "luce"),
+      ctes.filter((c) =>
+        c.tipo_fornitura === "luce" &&
+        (c.segmento_cliente === "entrambi" || c.segmento_cliente === undefined ||
+          (dati.tipo_cliente === "business" ? c.segmento_cliente === "business" : c.segmento_cliente === "residenziale"))
+      ),
       parametriLuce,
       null,
       prezziMercato,
@@ -418,7 +426,11 @@ export function AnalisiTab() {
     if (!showResults || !parametriGas || !dati.consumo_annuo_smc) return [];
     return calcolaConfrontoOfferte(
       { ...dati, prezzo_materia_luce: 0, quota_fissa_luce_mese: 0 },
-      ctes.filter((c) => c.tipo_fornitura === "gas"),
+      ctes.filter((c) =>
+        c.tipo_fornitura === "gas" &&
+        (c.segmento_cliente === "entrambi" || c.segmento_cliente === undefined ||
+          (dati.tipo_cliente === "business" ? c.segmento_cliente === "business" : c.segmento_cliente === "residenziale"))
+      ),
       null,
       parametriGas,
       prezziMercato,
