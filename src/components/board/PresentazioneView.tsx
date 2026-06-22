@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { Flame, Zap } from "lucide-react";
+import { Flame, Lock, Zap } from "lucide-react";
+import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Proiezione12Mesi } from "./analisi/Proiezione12Mesi";
 import { cn } from "@/lib/utils";
 import { eur } from "@/lib/board/formatters";
@@ -110,6 +111,78 @@ function ConfrontoCard({
           <span className="text-sm text-text-muted">Risparmio {title}:</span>
           <span className="font-bold text-xl text-savings">+{eur(risparmioDisplay)}</span>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ── BeforeAfterCard ───────────────────────────────────────────────────────────
+
+function BeforeAfterCard({
+  spesaAnnua,
+  costoOfferta,
+  risparmioAnnuo,
+  nomeOfferta,
+  durataBloccoMesi,
+}: {
+  spesaAnnua: number;
+  costoOfferta: number;
+  risparmioAnnuo: number;
+  nomeOfferta: string;
+  durataBloccoMesi?: number;
+}) {
+  const data = [
+    { name: "Attuale", valore: spesaAnnua },
+    { name: nomeOfferta, valore: costoOfferta },
+  ];
+  const labelTrunc = (s: string) => s.length > 13 ? s.slice(0, 13) + "…" : s;
+  const durataTotale = durataBloccoMesi ? risparmioAnnuo * (durataBloccoMesi / 12) : null;
+
+  return (
+    <div className="bg-white border border-border-ui rounded-xl p-5">
+      <p className="text-[10px] font-bold uppercase tracking-wider text-text-muted mb-3">
+        Prima / Dopo (annuo)
+      </p>
+      <ResponsiveContainer width="100%" height={96}>
+        <BarChart data={data} layout="vertical" margin={{ top: 0, right: 56, left: 0, bottom: 0 }}>
+          <XAxis type="number" hide />
+          <YAxis
+            type="category"
+            dataKey="name"
+            tick={{ fontSize: 11, fill: "#6b7280" }}
+            tickLine={false}
+            axisLine={false}
+            width={96}
+            tickFormatter={labelTrunc}
+          />
+          <Tooltip
+            contentStyle={{ fontSize: 12, border: "1px solid #e5e7eb", borderRadius: 8, boxShadow: "none", padding: "6px 10px" }}
+            formatter={(value: unknown) => [eur(Number(value)) + "/anno", ""]}
+            labelFormatter={(label) => String(label)}
+          />
+          <Bar dataKey="valore" radius={[0, 4, 4, 0]} maxBarSize={28}>
+            <Cell fill="#ef4444" />
+            <Cell fill="#22c55e" />
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+
+      <div className="mt-3 pt-3 border-t border-border-ui">
+        {durataTotale !== null ? (
+          <div className="flex items-center gap-2 text-sm">
+            <Lock className="w-3.5 h-3.5 text-brand shrink-0" />
+            <span>
+              <span className="font-medium text-text-base">Bloccato {durataBloccoMesi} mesi</span>
+              <span className="text-text-muted"> — </span>
+              <span className="font-bold text-savings">{eur(durataTotale)} risparmiati</span>
+            </span>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-text-muted">Risparmio a 12 mesi:</span>
+            <span className="font-bold text-savings">+{eur(risparmioAnnuo)}</span>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -357,6 +430,30 @@ export function PresentazioneView({
               spesaDisplay={spesaGasDisplay}
               costoDisplay={costoGasDisplay}
               risparmioDisplay={risparmioGasDisplay}
+            />
+          )}
+        </div>
+      )}
+
+      {/* Before/After Recharts + Durata bloccata */}
+      {(showLuceCard || showGasCard) && (
+        <div className={cn("grid gap-5", showLuceCard && showGasCard ? "md:grid-cols-2" : "")}>
+          {showLuceCard && (
+            <BeforeAfterCard
+              spesaAnnua={spesaAnnuaLuce}
+              costoOfferta={bestLuce.costo_annuo_totale}
+              risparmioAnnuo={risparmioLuceRaw}
+              nomeOfferta={bestLuce.nome}
+              durataBloccoMesi={bestLuce.durata_blocco_mesi}
+            />
+          )}
+          {showGasCard && (
+            <BeforeAfterCard
+              spesaAnnua={spesaAnnuaGas}
+              costoOfferta={bestGas.costo_annuo_totale}
+              risparmioAnnuo={risparmioGasRaw}
+              nomeOfferta={bestGas.nome}
+              durataBloccoMesi={bestGas.durata_blocco_mesi}
             />
           )}
         </div>
