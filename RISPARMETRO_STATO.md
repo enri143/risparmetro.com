@@ -46,7 +46,7 @@ Legenda: ✅ fatto · ⏳ da fare · 🟡 parziale · ⏸️ in attesa esterna �
 ### Blocco D — Hardening
 - **D15** ⏳ 🔴 Security audit RLS (il test `rls.cross-tenant.test.ts` ha 3 `it.skip` placeholder → da implementare qui)
 - **D16** ⏳ Osservabilità (Sentry)
-- **D17** 🟡 Dead-code: **isola Motore B fatta** · **`AnalisiTab.tsx` rimosso** · **`FiltriRapidiChips.tsx` rimosso**. RESTA: warning "Multiple GoTrueClient instances" (in attesa decisione chiave env)
+- **D17** ✅ Dead-code: isola Motore B rimossa · `AnalisiTab.tsx` + `FiltriRapidiChips.tsx` orfani rimossi · warning GoTrueClient eliminato (due `createClient` → un'istanza canonica con fallback chiave)
 - **D18** ⏳ QA tablet iPad reale
 
 ### Blocco GAS / E
@@ -64,7 +64,8 @@ Legenda: ✅ fatto · ⏳ da fare · 🟡 parziale · ⏸️ in attesa esterna �
 | 3 | B6 — toggle `showProvvigioni` (AnalisiCockpit + ConfrontoDettagliatoView + leak-test esteso) | `910513e` | build OK, 29/3/0 |
 | 4 | B7 — Proiezione 12 mesi da zero su Motore A (`proiezione.ts` + `Proiezione12Mesi.tsx` Recharts + mount in AnalisiCockpit) | `10f9382` | build OK, 33/3/0 |
 | 5 | D17 — rimossi `AnalisiTab.tsx` + `FiltriRapidiChips.tsx` orfani (guard grep vuoto) | `6d8ac02` | build OK, 33/3/0 |
-| 6 | B9 slice 1 — Proiezione12Mesi in PresentazioneView (grid 2-col, luce + gas, riuso componente esistente) | (questo commit) | build OK, 33/3/0 |
+| 6 | B9 slice 1 — Proiezione12Mesi in PresentazioneView (grid 2-col, luce + gas, riuso componente esistente) | `590f33b` | build OK, 33/3/0 |
+| 7 | D17 finale — GoTrueClient: `supabase.ts` diventa re-export, istanza canonica con fallback chiave in `client.ts` | (questo commit) | build OK, 33/3/0 |
 
 ---
 
