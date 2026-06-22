@@ -15,6 +15,7 @@ import {
   Zap,
 } from "lucide-react";
 import { ConfrontoDettagliatoView } from "./ConfrontoDettagliatoView";
+import { Proiezione12Mesi } from "./analisi/Proiezione12Mesi";
 import { MaxiTrattativaPanel } from "./analisi/MaxiTrattativaPanel";
 import { PresentazioneView } from "./PresentazioneView";
 import { TrattativaView } from "./TrattativaView";
@@ -1231,6 +1232,24 @@ export function AnalisiCockpit() {
                 })()}
                 {saveError && <p className="text-xs text-spend">{saveError}</p>}
               </div>
+
+              {/* Proiezione 12 mesi — offerta selezionata */}
+              {selectedCteId && (() => {
+                const sel =
+                  risultatiLuce.find((r) => r.cte_id === selectedCteId) ??
+                  risultatiGas.find((r) => r.cte_id === selectedCteId);
+                if (!sel) return null;
+                const spesaPerProiezione = risultatiLuce.some((r) => r.cte_id === selectedCteId)
+                  ? spesaAnnuaLuce
+                  : spesaAnnuaGas;
+                return (
+                  <Proiezione12Mesi
+                    costoOfferta={sel.costo_annuo_totale}
+                    spesaAnnua={spesaPerProiezione}
+                    nomeOfferta={sel.nome}
+                  />
+                );
+              })()}
 
               {/* Offer lists */}
               <div className="space-y-8">
