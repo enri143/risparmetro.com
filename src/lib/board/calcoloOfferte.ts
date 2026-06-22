@@ -6,8 +6,7 @@
 //
 // Regola prezzi luce:
 //   prezzi fissi e prezzo attuale cliente → lordo perdite (prezzo al contatore)
-//   PUN (imp.pun_riferimento) + spread  → netto perdite → × perdite_rete per
-//   ottenere il prezzo lordo (= al contatore) da usare nel calcolo.
+//   Indicizzato: PUN × perdite_rete + spread (spread è già al contatore, non × perdite)
 // Gas: nessuna perdita di rete. Tutti i prezzi gas sono già al lordo bolletta.
 // REGOLA: puro TypeScript, zero dipendenze React, zero import Supabase.
 // ============================================================================
@@ -243,13 +242,14 @@ function costoContendibileGas(
 }
 
 // Restituisce il prezzo materia luce lordo perdite (= prezzo al contatore).
-// Fisso: già lordo perdite (quota quotata al contatore).
-// Indicizzato: PUN (netto) + spread (netto) → × perdite_rete → lordo contatore.
+// Fisso: già lordo perdite (prezzo quotato al contatore).
+// Indicizzato: PUN (netto perdite) × perdite_rete + spread (al contatore, niente × perdite).
+// Convention di mercato: il fornitore quota spread come margine sul prezzo finale al contatore.
 function prezzoMateriaLordoLuce(cte: CTE, imp: Impostazioni): number {
   if (cte.tipo_prezzo === 'fisso') {
     return cte.prezzo_energia_luce ?? 0;
   }
-  return (imp.pun_riferimento + (cte.spread_luce ?? 0)) * imp.perdite_rete;
+  return imp.pun_riferimento * imp.perdite_rete + (cte.spread_luce ?? 0);
 }
 
 // Gas: nessuna perdita di rete. Prezzi già in bolletta.
