@@ -55,7 +55,7 @@ Legenda: ✅ fatto · 🟡 parziale · ⏳ da fare · 🔴 rischio alto · ⭐ e
 | WU | Idee | Goal | Stato | Commit |
 |----|------|------|-------|--------|
 | WU1 | 3 | Spezzare `AnalisiCockpit` in componenti (Setup / Offerte / Results) senza cambio comportamento | ✅ | ce80abc |
-| WU2 | 2 + 1 | Route annidate `/board/analisi/*` (dati→offerte→presenta→chiudi) + stepper visivo sincronizzato | 🟡 | 2a: 563a87c · 2b: a404647 · 2b-2: TBD |
+| WU2 | 2 + 1 | Route annidate `/board/analisi/*` (dati→offerte→presenta→chiudi) + stepper visivo sincronizzato | 🟡 | 2a: 563a87c · 2b: a404647 · 2b-2: dd55ca7 |
 
 ### Fase 2 — Design base (eredita tutto il resto)
 | WU | Idee | Goal | Stato | Commit |
@@ -135,4 +135,4 @@ Legenda: ✅ fatto · 🟡 parziale · ⏳ da fare · 🔴 rischio alto · ⭐ e
 | 23 giu 2026 | WU1 | ce80abc | split AnalisiCockpit → AnalisiSetup + AnalisiOfferte; 79/3/0 ✅ |
 | 23 giu 2026 | WU2a | 563a87c | tab board route-driven (Board layout + Outlet + StoricoRoute); 79/3/0 ✅ |
 | 23 giu 2026 | WU2b | a404647 | route analisi dati/offerte/presenta; AnalisiCtx via Outlet; showResults/presentationMode → navigate; leak-test esteso a PresentazioneView; 81/3/0 ✅ |
-| 24 giu 2026 | WU2b-2 | TBD | route dettaglio+chiudi; ConfrontoDettagliatoView+TrattativaView → useOutletContext; AnalisiCtx +ctes/clientMode/showProvvigioni/trattativaOfferta; leak-test refactored mockCtx; 81/3/0 ✅ |
+| 24 giu 2026 | WU2b-2 | dd55ca7 | route dettaglio+chiudi; ConfrontoDettagliatoView+TrattativaView → useOutletContext; AnalisiCtx +ctes/clientMode/showProvvigioni/trattativaOfferta; leak-test refactored mockCtx; 81/3/0 ✅ |
