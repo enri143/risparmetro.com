@@ -2,8 +2,30 @@ import { useEffect, useState } from "react";
 import { RequirePlatformAdmin } from "@/components/admin/RequirePlatformAdmin";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ShieldCheck } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { ShieldCheck, Plus, Loader2 } from "lucide-react";
+import { slugify } from "@/lib/admin/slug";
+import { toast } from "sonner";
+
+const PIANI = ["free", "starter", "pro", "business"] as const;
+type Piano = (typeof PIANI)[number];
 
 interface TenantRow {
   id: string;
@@ -15,25 +37,157 @@ interface TenantRow {
   colore_primario: string | null;
 }
 
-function TenantList() {
-  const [tenants, setTenants] = useState<TenantRow[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+// ── NuovoTenantDialog ─────────────────────────────────────────────────────────
 
-  useEffect(() => {
-    supabase
+interface NuovoTenantDialogProps {
+  open: boolean;
+  onClose: () => void;
+  onCreated: () => void;
+}
+
+function NuovoTenantDialog({ open, onClose, onCreated }: NuovoTenantDialogProps) {
+  const [nome, setNome] = useState("");
+  const [slug, setSlug] = useState("");
+  const [slugManuale, setSlugManuale] = useState(false);
+  const [piano, setPiano] = useState<Piano>("free");
+  const [colore, setColore] = useState("#4f46e5");
+  const [saving, setSaving] = useState(false);
+  const [errore, setErrore] = useState<string | null>(null);
+
+  const handleNomeChange = (v: string) => {
+    setNome(v);
+    if (!slugManuale) setSlug(slugify(v));
+  };
+
+  const handleSlugChange = (v: string) => {
+    setSlug(v);
+    setSlugManuale(true);
+  };
+
+  const reset = () => {
+    setNome(""); setSlug(""); setSlugManuale(false);
+    setPiano("free"); setColore("#4f46e5"); setErrore(null);
+  };
+
+  const handleClose = () => { reset(); onClose(); };
+
+  const submit = async () => {
+    if (!nome.trim() || !slug.trim()) return;
+    setSaving(true);
+    setErrore(null);
+    const { error } = await supabase
       .from("tenants")
-      .select("id, slug, nome, piano, attivo, created_at, colore_primario")
-      .order("created_at", { ascending: false })
-      .then(({ data, error: err }) => {
-        if (err) {
-          console.error("[AdminConsole] tenants fetch error:", err);
-          setError(err.message);
-        } else {
-          setTenants((data ?? []) as unknown as TenantRow[]);
-        }
-      });
-  }, []);
+      .insert({ nome: nome.trim(), slug: slug.trim(), piano, colore_primario: colore, attivo: true })
+      .select()
+      .single();
+    setSaving(false);
+    if (error) {
+      if (error.code === "23505") {
+        setErrore("Slug già esistente — scegli un nome diverso.");
+      } else {
+        setErrore(error.message);
+      }
+      return;
+    }
+    toast.success(`Tenant "${nome.trim()}" creato.`);
+    reset();
+    onCreated();
+  };
 
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Nuovo tenant</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4 py-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="nt-nome">Nome *</Label>
+            <Input
+              id="nt-nome"
+              placeholder="es. Energia Verde Srl"
+              value={nome}
+              onChange={(e) => handleNomeChange(e.target.value)}
+              autoFocus
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="nt-slug">Slug *</Label>
+            <Input
+              id="nt-slug"
+              placeholder="es. energia-verde-srl"
+              value={slug}
+              onChange={(e) => handleSlugChange(e.target.value)}
+              className="font-mono text-sm"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Identificatore univoco — solo lettere, numeri e trattini.
+            </p>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Piano</Label>
+            <Select value={piano} onValueChange={(v) => setPiano(v as Piano)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PIANI.map((p) => (
+                  <SelectItem key={p} value={p} className="capitalize">
+                    {p}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="nt-colore">Colore primario</Label>
+            <div className="flex items-center gap-2">
+              <input
+                id="nt-colore"
+                type="color"
+                value={colore}
+                onChange={(e) => setColore(e.target.value)}
+                className="w-9 h-9 rounded cursor-pointer border border-border bg-transparent p-0.5"
+              />
+              <span className="text-sm font-mono text-muted-foreground">{colore}</span>
+            </div>
+          </div>
+
+          {errore && (
+            <p className="text-sm text-destructive">{errore}</p>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={handleClose} disabled={saving}>
+            Annulla
+          </Button>
+          <Button
+            onClick={submit}
+            disabled={saving || !nome.trim() || !slug.trim()}
+            className="gap-2"
+          >
+            {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+            Crea tenant
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── TenantList ────────────────────────────────────────────────────────────────
+
+interface TenantListProps {
+  tenants: TenantRow[] | null;
+  error: string | null;
+}
+
+function TenantList({ tenants, error }: TenantListProps) {
   if (!tenants && !error) {
     return (
       <div className="space-y-2">
@@ -91,7 +245,32 @@ function TenantList() {
   );
 }
 
+// ── AdminConsole ──────────────────────────────────────────────────────────────
+
 export default function AdminConsole() {
+  const [tenants, setTenants] = useState<TenantRow[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [nuovoOpen, setNuovoOpen] = useState(false);
+
+  const loadTenants = () => {
+    setTenants(null);
+    setError(null);
+    supabase
+      .from("tenants")
+      .select("id, slug, nome, piano, attivo, created_at, colore_primario")
+      .order("created_at", { ascending: false })
+      .then(({ data, error: err }) => {
+        if (err) {
+          console.error("[AdminConsole] tenants fetch error:", err);
+          setError(err.message);
+        } else {
+          setTenants((data ?? []) as unknown as TenantRow[]);
+        }
+      });
+  };
+
+  useEffect(() => { loadTenants(); }, []);
+
   return (
     <RequirePlatformAdmin>
       <div className="min-h-screen bg-muted/30">
@@ -109,12 +288,28 @@ export default function AdminConsole() {
 
         <main className="container mx-auto max-w-4xl px-4 sm:px-6 py-8 space-y-6">
           <section>
-            <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-3">
-              Tenant registrati
-            </h2>
-            <TenantList />
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+                Tenant registrati
+              </h2>
+              <Button
+                size="sm"
+                onClick={() => setNuovoOpen(true)}
+                className="gap-1.5 h-8 text-xs"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Nuovo tenant
+              </Button>
+            </div>
+            <TenantList tenants={tenants} error={error} />
           </section>
         </main>
+
+        <NuovoTenantDialog
+          open={nuovoOpen}
+          onClose={() => setNuovoOpen(false)}
+          onCreated={() => { setNuovoOpen(false); loadTenants(); }}
+        />
       </div>
     </RequirePlatformAdmin>
   );
