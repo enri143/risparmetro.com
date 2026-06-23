@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/hooks/useSession";
 import { TabBar, type BoardTab } from "@/components/board/TabBar";
@@ -10,13 +10,15 @@ import { StoricoTab } from "@/components/board/analisi/StoricoTab";
 import { ImpostazioniTab } from "@/components/board/impostazioni/ImpostazioniTab";
 import { ModalitaAgenteSheet, AGENT_SHEET_EVENT } from "@/components/board/analisi/ModalitaAgenteSheet";
 import { useLongPress } from "@/hooks/useLongPress";
+import { useIsPlatformAdmin } from "@/hooks/useIsPlatformAdmin";
 import { useState } from "react";
-import { LogOut } from "lucide-react";
+import { LogOut, ShieldCheck } from "lucide-react";
 
 export default function Board() {
   const [tab, setTab] = useState<BoardTab>("analisi");
   const navigate = useNavigate();
   const { session, loading } = useSession();
+  const { isAdmin } = useIsPlatformAdmin();
 
   useEffect(() => {
     if (!loading && !session) {
@@ -50,14 +52,26 @@ export default function Board() {
               </h1>
               <p className="text-xs opacity-80">Strumento agenti commerciali energia</p>
             </div>
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-1.5 text-xs opacity-70 hover:opacity-100 transition-opacity px-2 py-1 rounded"
-              title="Esci"
-            >
-              <LogOut className="w-4 h-4" />
-              <span className="hidden sm:inline">Esci</span>
-            </button>
+            <div className="flex items-center gap-3">
+              {isAdmin && (
+                <Link
+                  to="/admin"
+                  className="flex items-center gap-1.5 text-xs opacity-70 hover:opacity-100 transition-opacity px-2 py-1 rounded"
+                  title="Console Admin"
+                >
+                  <ShieldCheck className="w-4 h-4" />
+                  <span className="hidden sm:inline">Admin</span>
+                </Link>
+              )}
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-1.5 text-xs opacity-70 hover:opacity-100 transition-opacity px-2 py-1 rounded"
+                title="Esci"
+              >
+                <LogOut className="w-4 h-4" />
+                <span className="hidden sm:inline">Esci</span>
+              </button>
+            </div>
           </div>
         </header>
         <TabBar active={tab} onChange={setTab} />

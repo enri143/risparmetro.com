@@ -5,6 +5,7 @@ import './index.css'
 import App from './App.tsx'
 import Board from './pages/Board.tsx'
 import BoardLogin from './pages/BoardLogin.tsx'
+import AdminConsole from './pages/AdminConsole.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -13,6 +14,7 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/" element={<App />} />
         <Route path="/board/login" element={<BoardLogin />} />
         <Route path="/board" element={<Board />} />
+        <Route path="/admin" element={<AdminConsole />} />
       </Routes>
     </BrowserRouter>
   </StrictMode>,
