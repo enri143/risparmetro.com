@@ -2,14 +2,14 @@
 
 > Checkpoint resumibile. Aggiornato a fine di ogni step (commit isolato).
 > Invarianti complete: vedi `RISPARMETRO_BUILD_PLAN.md`. Roadmap: idem.
-> **Ultimo aggiornamento: 23 giugno 2026** (sessione post-harness, ragionamento via chat + esecuzione via Claude Code).
+> **Ultimo aggiornamento: 23 giugno 2026** (sessione continuata — blocco V co-pilot completato).
 
 ---
 
 ## Stato corrente (one-glance)
 
 - **Motore**: A (`src/lib/board/calcoloOfferte.ts`, "parte contendibile") = **unico e frozen**. Motore B eliminato.
-- **Test suite**: `33 passed · 3 skipped · 0 failed` (`npm run test`).
+- **Test suite**: `42 passed · 3 skipped · 0 failed` (`npm run test`).
 - **Build**: `npm run build` OK (solo warning pre-esistenti: chunk size, eval in vm-browserify).
 - **Golden**: `calcoloOfferte.golden.test.ts` = oracolo vero, 6 casi, numeri ricalcolati a mano dal motore.
 - ⚠️ **origin/main indietro**: ricordarsi `git push` (commit locali avanti).
@@ -96,15 +96,11 @@ Legenda: ✅ fatto · ⏳ da fare · 🟡 parziale · ⏸️ in attesa esterna �
 - **BUG fornitori** — verifica `npx supabase db push` + fornitori nel Table Editor, poi decide se fuzzy match.
 - **V2** — Enrico scrive lista tips/suggerimenti → si genera il pannello.
 - **V6** / **V8** — bloccati su contenuti/feature precedenti.
-- **BUG fornitori** — verifica `npx supabase db push` + fornitori nel Table Editor, poi decide se fuzzy match.
-- **V2** — Enrico scrive lista tips/suggerimenti → si genera il pannello.
-- **V6** / **V8** — bloccati su contenuti/feature precedenti.
 
 ---
 
 ## Note tecniche aperte
 
-- `AnalisiTab.tsx` è **orfano** (zero import) → candidato cleanup D17.
 - Leak-guard `clientmode-leak.test.tsx`: usa `queryByText("Provvigione")` **esatto** per non collidere col bottone toggle "Provvigioni: ON/OFF". Hardening opzionale: `data-testid` dedicato sulla sezione "Condizioni Agente".
 - Provvigioni: PDF (`src/lib/pdf/`) e `MaxiTrattativaPanel` verificati **puliti** (nessun riferimento). Unica superficie viva che le mostra = `ConfrontoDettagliatoView`.
 - `parametri_regolati` gas resta separato finché non si fa il Blocco GAS (scaglioni).
