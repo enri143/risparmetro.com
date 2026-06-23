@@ -9,7 +9,7 @@
 ## Stato corrente (one-glance)
 
 - **Motore**: A (`src/lib/board/calcoloOfferte.ts`, "parte contendibile") = **unico e frozen**. Motore B eliminato.
-- **Test suite**: `42 passed · 3 skipped · 0 failed` (`npm run test`).
+- **Test suite**: `47 passed · 3 skipped · 0 failed` (`npm run test`).
 - **Build**: `npm run build` OK (solo warning pre-esistenti: chunk size, eval in vm-browserify).
 - **Golden**: `calcoloOfferte.golden.test.ts` = oracolo vero, 6 casi, numeri ricalcolati a mano dal motore.
 - ⚠️ **origin/main indietro**: ricordarsi `git push` (commit locali avanti).
@@ -45,7 +45,7 @@ Legenda: ✅ fatto · ⏳ da fare · 🟡 parziale · ⏸️ in attesa esterna �
 - **V7** ✅ CompliancePanel — 5 item checklist con banner verde a completamento
 - **V8** ⏳ follow-up (dipende da B5)
 - Contenuti V3/V4/V5/V7 hardcoded come default; editabilità per-tenant via jsonb deferita al blocco C.
-- ⚠️ **BUG fornitori**: join nullo (`fornitore_nome: "—"`) — causa documentata (seed non applicato O mismatch nomi OCR vs seed). Fix: verificare `supabase db push` + eventuale fuzzy match in UploadPdfFlow. Decisione Enrico.
+- ✅ **BUG fornitori risolto**: `matchFornitore` (fuzzy includes) + auto-create via upsert on conflict slug in `UploadPdfFlow`. Seed ancora da applicare se DB vuoto (`npx supabase db push`).
 
 ### Blocco C — Multi-tenant SaaS
 - **C12** ⏳ Console super-admin · **C13** ⏳ 💰 Onboarding + white-label branding · **C14** ⏳ Inviti team + auth completo
@@ -88,14 +88,15 @@ Legenda: ✅ fatto · ⏳ da fare · 🟡 parziale · ⏸️ in attesa esterna �
 | 20 | V4 — ScalettaChiusuraPanel (checklist + contatore x/N) | `6f992d4` | build OK, 42/3/0 |
 | 21 | V5+V7 — FrasiClosePanel (clipboard+feedback) + CompliancePanel (checklist+banner) | `19e6c72` | build OK, 42/3/0 |
 | 22 | V S5 — CopilotTrattativa accordion + mount in TrattativaView | `b54baa1` | build OK, 42/3/0 |
+| 23 | fix: fornitore_id via fuzzy match + auto-create (matchFornitore.ts + 5 test + UploadPdfFlow) | `c7bca4a` | build OK, 47/3/0 |
 
 ---
 
 ## Prossimo step
 
-- **BUG fornitori** — verifica `npx supabase db push` + fornitori nel Table Editor, poi decide se fuzzy match.
 - **V2** — Enrico scrive lista tips/suggerimenti → si genera il pannello.
 - **V6** / **V8** — bloccati su contenuti/feature precedenti.
+- **Auth** — collegare Supabase Auth + mappare utente a tenant via `tenant_members` (vedi CLAUDE.md).
 
 ---
 
