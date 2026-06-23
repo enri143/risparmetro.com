@@ -1,11 +1,12 @@
-import { Zap, ListChecks, Settings } from "lucide-react";
+import { Zap, ListChecks, Settings, History } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export type BoardTab = "analisi" | "listino" | "impostazioni";
+export type BoardTab = "analisi" | "listino" | "storico" | "impostazioni";
 
 const TABS: { id: BoardTab; label: string; icon: typeof Zap }[] = [
   { id: "analisi", label: "Analisi", icon: Zap },
   { id: "listino", label: "Listino CTE", icon: ListChecks },
+  { id: "storico", label: "Storico", icon: History },
   { id: "impostazioni", label: "Impostazioni", icon: Settings },
 ];
 

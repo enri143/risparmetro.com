@@ -6,6 +6,7 @@ import { TabBar, type BoardTab } from "@/components/board/TabBar";
 import { ImpostazioniProvider } from "@/components/board/ImpostazioniContext";
 import { AnalisiCockpit } from "@/components/board/AnalisiCockpit";
 import { ListinoTab } from "@/components/board/listino/ListinoTab";
+import { StoricoTab } from "@/components/board/analisi/StoricoTab";
 import { ImpostazioniTab } from "@/components/board/impostazioni/ImpostazioniTab";
 import { ModalitaAgenteSheet, AGENT_SHEET_EVENT } from "@/components/board/analisi/ModalitaAgenteSheet";
 import { useLongPress } from "@/hooks/useLongPress";
@@ -62,6 +63,11 @@ export default function Board() {
         <TabBar active={tab} onChange={setTab} />
         {tab === "analisi" && <AnalisiCockpit />}
         {tab === "listino" && <ListinoTab />}
+        {tab === "storico" && (
+          <div className="container mx-auto px-4 py-6 max-w-2xl">
+            <StoricoTab />
+          </div>
+        )}
         {tab === "impostazioni" && <ImpostazioniTab />}
         <ModalitaAgenteSheet />
       </div>
