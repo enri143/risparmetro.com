@@ -37,8 +37,15 @@ Legenda: ✅ fatto · ⏳ da fare · 🟡 parziale · ⏸️ in attesa esterna �
 
 ### Blocco V — Co-pilot trattativa
 - **V1** ✅ "Gira il tablet" (overlay risparmio gigante)
-- **V2 / V3 / V4 / V5** ⏳ — **bloccati sui contenuti**: servono le liste scritte a mano da Enrico (tips, obiezioni, frasi di close) prima di passare a CC
-- **V6** ⏳ 💰 Battle card competitor (dipende da B10) · **V7** ⏳ compliance · **V8** ⏳ follow-up (dipende da B5)
+- **V2** ⏳ — bloccato: serve lista tips/suggerimenti (contenuto da Enrico)
+- **V3** ✅ ObiezioniPanel — 6 obiezioni con risposta, accordion locale
+- **V4** ✅ ScalettaChiusuraPanel — 6 step checklist con contatore
+- **V5** ✅ FrasiClosePanel — 6 frasi con bottone Copia (clipboard)
+- **V6** ⏳ 💰 Battle card competitor (dipende da B10)
+- **V7** ✅ CompliancePanel — 5 item checklist con banner verde a completamento
+- **V8** ⏳ follow-up (dipende da B5)
+- Contenuti V3/V4/V5/V7 hardcoded come default; editabilità per-tenant via jsonb deferita al blocco C.
+- ⚠️ **BUG fornitori**: join nullo (`fornitore_nome: "—"`) — causa documentata (seed non applicato O mismatch nomi OCR vs seed). Fix: verificare `supabase db push` + eventuale fuzzy match in UploadPdfFlow. Decisione Enrico.
 
 ### Blocco C — Multi-tenant SaaS
 - **C12** ⏳ Console super-admin · **C13** ⏳ 💰 Onboarding + white-label branding · **C14** ⏳ Inviti team + auth completo
@@ -76,13 +83,22 @@ Legenda: ✅ fatto · ⏳ da fare · 🟡 parziale · ⏸️ in attesa esterna �
 | 15 | B8 S1 — helper storico (splitSnapshot + stripProvvigioni) con 4 test | `fbd582a` | build OK, 37/3/0 |
 | 16 | B8 S2 — StoricoTab v2: query diretta simulazioni, snapshot read-only, no provvigioni, no edge function | `f8c4d95` | build OK, 37/3/0 |
 | 17 | B8 S3 — monta tab Storico (BoardTab union + History icon + Board.tsx mount) | `3282bb6` | build OK, 37/3/0 |
+| 18 | V S1 — contenuti co-pilot di default + 5 test (obiezioni, scaletta, frasi, compliance) | `f66431d` | build OK, 42/3/0 |
+| 19 | V3 — ObiezioniPanel (accordion locale, una aperta alla volta) | `45f0b49` | build OK, 42/3/0 |
+| 20 | V4 — ScalettaChiusuraPanel (checklist + contatore x/N) | `6f992d4` | build OK, 42/3/0 |
+| 21 | V5+V7 — FrasiClosePanel (clipboard+feedback) + CompliancePanel (checklist+banner) | `19e6c72` | build OK, 42/3/0 |
+| 22 | V S5 — CopilotTrattativa accordion + mount in TrattativaView | `b54baa1` | build OK, 42/3/0 |
 
 ---
 
 ## Prossimo step
 
-- **V2/V3** — Enrico scrive le liste contenuti (tips/obiezioni/close) → poi si genera il codice.
-- **V2/V3** — Enrico scrive le liste contenuti (tips/obiezioni/close) → poi si genera il codice.
+- **BUG fornitori** — verifica `npx supabase db push` + fornitori nel Table Editor, poi decide se fuzzy match.
+- **V2** — Enrico scrive lista tips/suggerimenti → si genera il pannello.
+- **V6** / **V8** — bloccati su contenuti/feature precedenti.
+- **BUG fornitori** — verifica `npx supabase db push` + fornitori nel Table Editor, poi decide se fuzzy match.
+- **V2** — Enrico scrive lista tips/suggerimenti → si genera il pannello.
+- **V6** / **V8** — bloccati su contenuti/feature precedenti.
 
 ---
 
