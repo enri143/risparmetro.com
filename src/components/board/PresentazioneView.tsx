@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useTenantBranding } from "@/hooks/useTenantBranding";
 import { Flame, Lock, Zap } from "lucide-react";
 import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Proiezione12Mesi } from "./analisi/Proiezione12Mesi";
@@ -278,6 +279,8 @@ export function PresentazioneView({
   parametriGas: ParametriRegolati | null;
   onVediDettagliati: () => void;
 }) {
+  const { branding } = useTenantBranding();
+  const [logoFailed, setLogoFailed] = useState(false);
   const [includiIva, setIncludiIva] = useState(true);
 
   const ivaLuce = parametriLuce?.iva ?? 0.1;
@@ -329,6 +332,36 @@ export function PresentazioneView({
 
   return (
     <div className="space-y-5">
+
+      {/* TESTATA BRAND */}
+      {(branding?.logo_url || branding?.brand_name) && (
+        <div
+          data-testid="presentazione-branded-header"
+          className="bg-white border border-border-ui rounded-xl p-4 sm:p-5 shadow-sm flex items-center gap-4"
+        >
+          {branding?.logo_url && !logoFailed && (
+            <img
+              src={branding.logo_url}
+              alt={branding.brand_name ?? "Logo"}
+              onError={() => setLogoFailed(true)}
+              className="shrink-0 h-12 max-w-[180px] object-contain"
+            />
+          )}
+          <div className="min-w-0 flex-1">
+            {branding?.brand_name && (
+              <p className="text-lg font-bold text-text-base leading-tight truncate">
+                {branding.brand_name}
+              </p>
+            )}
+            <div className="h-[3px] w-16 rounded-full bg-brand my-1.5" />
+            {branding?.brand_phone && (
+              <p className="text-sm text-text-muted truncate">
+                {branding.brand_phone}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* TOP ROW: IVA toggle + Fasce */}
       <div className={cn("grid gap-5", showFasce ? "md:grid-cols-2" : "")}>
