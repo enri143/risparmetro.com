@@ -5,6 +5,7 @@ import { eur } from "@/lib/board/formatters";
 import { supabase } from "@/integrations/supabase/client";
 import { generateReport } from "@/lib/pdf/generateReport";
 import { cn } from "@/lib/utils";
+import { CopilotTrattativa } from "@/components/board/analisi/copilot/CopilotTrattativa";
 
 interface TenantBranding {
   brand_name: string | null;
@@ -115,7 +116,8 @@ export function TrattativaView({
       </div>
 
       {/* ── BODY ── */}
-      <div className="flex-1 min-h-0 flex flex-col items-center justify-evenly px-6 sm:px-12 py-6 gap-4">
+      <div className="flex-1 min-h-0 overflow-y-auto">
+      <div className="flex flex-col items-center justify-evenly px-6 sm:px-12 py-6 gap-4 min-h-full">
 
         {/* HERO — risparmio annuo */}
         <div className="text-center shrink-0">
@@ -214,6 +216,12 @@ export function TrattativaView({
             Oneri di sistema e trasporto (regolati ARERA) sono identici per tutti i fornitori — non inclusi nel confronto.
           </p>
         </div>
+      </div>
+
+      {/* ── CO-PILOT TRATTATIVA ── */}
+      <div className="px-6 sm:px-12 pb-6">
+        <CopilotTrattativa />
+      </div>
       </div>
 
       {/* ── FOOTER CTA ── */}
