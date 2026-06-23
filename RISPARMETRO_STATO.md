@@ -48,8 +48,9 @@ Legenda: ✅ fatto · ⏳ da fare · 🟡 parziale · ⏸️ in attesa esterna �
 - ✅ **BUG fornitori risolto**: `matchFornitore` (fuzzy includes) + auto-create via upsert on conflict slug in `UploadPdfFlow`. Seed ancora da applicare se DB vuoto (`npx supabase db push`).
 
 ### Blocco C — Multi-tenant SaaS
-- **C12** 🟡 Console super-admin — slice 1+2 fatti: `/admin` blindata, lista tenant, crea tenant (nome/slug/piano/colore, errore slug duplicato), sospendi/riattiva con conferma. Restano: inviti/mapping utente↔tenant (C14), mandati fornitori per-tenant.
-- **C13** ⏳ 💰 Onboarding + white-label branding · **C14** ⏳ Inviti team + mapping utente↔tenant
+- **C12** 🟡 Console super-admin — slice 1+2 fatti: `/admin` blindata, lista tenant, crea tenant (nome/slug/piano/colore, errore slug duplicato), sospendi/riattiva con conferma. Provisioning agente via UI (C14-B). Restano: mandati fornitori per-tenant.
+- **C13** ⏳ 💰 Onboarding + white-label branding
+- **C14** 🟡 Provisioning agente: edge function `provision-tenant-user` (service_role, guard platform_admin, rollback su member-insert fail) + UI "Aggiungi agente" nella console (email/password/ruolo, genera password, riepilogo+copia). Resta: inviti self-service via email (fase futura).
 
 ### Blocco D — Hardening
 - **D15** ✅ (parziale) R1 ✅ narrow SELECT cte, R2 ✅ hook orfano rimosso. R3 ⏸️ `impostazioni` table: decisione globale-vs-tenant parcheggiata → blocco C (onboarding tenant). `rls.cross-tenant.test.ts` ha 3 `it.skip` → step futuro.
@@ -96,6 +97,7 @@ Legenda: ✅ fatto · ⏳ da fare · 🟡 parziale · ⏸️ in attesa esterna �
 | 27 | C12 S4 — slugify helper + 5 test | `369f3e4` | build OK, 52/3/0 |
 | 28 | C12 S5 — crea tenant: Dialog nome/slug/piano/colore, errore slug duplicato | `89370a1` | build OK, 52/3/0 |
 | 29 | C12 S6 — sospendi/riattiva tenant: toggle + confirm + reload | `1da420e` | build OK, 52/3/0 |
+| 30 | C14-B — edge function provision-tenant-user + UI AggiuntaAgenteDialog | `aa4efc2` | build OK, 52/3/0 · deploy OK |
 
 ---
 
@@ -103,7 +105,8 @@ Legenda: ✅ fatto · ⏳ da fare · 🟡 parziale · ⏸️ in attesa esterna �
 
 - **V2** — Enrico scrive lista tips/suggerimenti → si genera il pannello.
 - **V6** / **V8** — bloccati su contenuti/feature precedenti.
-- **Auth** — collegare Supabase Auth + mappare utente a tenant via `tenant_members` (vedi CLAUDE.md).
+- **C13** — Onboarding white-label (upload logo, accent color per tenant).
+- **board-storico** — edge function orfana (non chiamata da nessun client): candidata rimozione in D17 futuro.
 
 ---
 
