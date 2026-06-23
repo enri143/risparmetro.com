@@ -185,9 +185,31 @@ function NuovoTenantDialog({ open, onClose, onCreated }: NuovoTenantDialogProps)
 interface TenantListProps {
   tenants: TenantRow[] | null;
   error: string | null;
+  onRefresh: () => void;
 }
 
-function TenantList({ tenants, error }: TenantListProps) {
+function TenantList({ tenants, error, onRefresh }: TenantListProps) {
+  const [toggling, setToggling] = useState<string | null>(null);
+
+  const toggleAttivo = async (t: TenantRow) => {
+    if (t.attivo) {
+      const ok = window.confirm(`Sospendere "${t.nome ?? t.slug}"? L'accesso al board sarà bloccato per questo tenant.`);
+      if (!ok) return;
+    }
+    setToggling(t.id);
+    const { error: err } = await supabase
+      .from("tenants")
+      .update({ attivo: !t.attivo })
+      .eq("id", t.id);
+    setToggling(null);
+    if (err) {
+      toast.error("Errore: " + err.message);
+    } else {
+      toast.success(t.attivo ? `"${t.nome ?? t.slug}" sospeso.` : `"${t.nome ?? t.slug}" riattivato.`);
+      onRefresh();
+    }
+  };
+
   if (!tenants && !error) {
     return (
       <div className="space-y-2">
@@ -211,7 +233,7 @@ function TenantList({ tenants, error }: TenantListProps) {
       {tenants.map((t) => (
         <div
           key={t.id}
-          className="flex items-center gap-4 px-4 py-3 bg-background hover:bg-muted/40 transition-colors"
+          className="flex items-center gap-3 px-4 py-3 bg-background hover:bg-muted/40 transition-colors"
         >
           <div
             className="w-2.5 h-2.5 rounded-full shrink-0"
@@ -238,6 +260,17 @@ function TenantList({ tenants, error }: TenantListProps) {
             <span className="text-[11px] text-muted-foreground hidden sm:block tabular-nums">
               {new Date(t.created_at).toLocaleDateString("it-IT")}
             </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={toggling === t.id}
+              onClick={() => toggleAttivo(t)}
+              className="h-7 px-2 text-[11px] text-muted-foreground hover:text-foreground"
+            >
+              {toggling === t.id
+                ? <Loader2 className="w-3 h-3 animate-spin" />
+                : t.attivo ? "Sospendi" : "Riattiva"}
+            </Button>
           </div>
         </div>
       ))}
@@ -301,7 +334,7 @@ export default function AdminConsole() {
                 Nuovo tenant
               </Button>
             </div>
-            <TenantList tenants={tenants} error={error} />
+            <TenantList tenants={tenants} error={error} onRefresh={loadTenants} />
           </section>
         </main>
 
