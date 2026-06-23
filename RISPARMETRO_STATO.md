@@ -44,7 +44,7 @@ Legenda: ✅ fatto · ⏳ da fare · 🟡 parziale · ⏸️ in attesa esterna �
 - **C12** ⏳ Console super-admin · **C13** ⏳ 💰 Onboarding + white-label branding · **C14** ⏳ Inviti team + auth completo
 
 ### Blocco D — Hardening
-- **D15** 🟡 Security audit RLS completato (vedi `audit/D15_RLS_AUDIT.md`). Fix da progettare: narrow SELECT su cte, migration per tabelle fantasma `impostazioni`/`sg_provvigioni`. Test `rls.cross-tenant.test.ts` ha 3 `it.skip` placeholder → da implementare in step 2.
+- **D15** 🟡 Audit completato + R1 fixato. ✅ R1: narrow SELECT cte + fetch provvigioni gated `!clientMode`. ⏳ R2: migration `impostazioni`. ⏳ R3: migration `sg_provvigioni` (prima di attivare la feature). Test `rls.cross-tenant.test.ts` ha 3 `it.skip` placeholder → da implementare come step 3.
 - **D16** ⏳ Osservabilità (Sentry)
 - **D17** ✅ Dead-code: isola Motore B rimossa · `AnalisiTab.tsx` + `FiltriRapidiChips.tsx` orfani rimossi · warning GoTrueClient eliminato (due `createClient` → un'istanza canonica con fallback chiave)
 - **D18** ⏳ QA tablet iPad reale
@@ -68,7 +68,8 @@ Legenda: ✅ fatto · ⏳ da fare · 🟡 parziale · ⏸️ in attesa esterna �
 | 7 | D17 finale — GoTrueClient: `supabase.ts` diventa re-export, istanza canonica con fallback chiave in `client.ts` | `00149eb` | build OK, 33/3/0 |
 | 8 | B9 slice 2 — BeforeAfterCard (BarChart Recharts) + durata bloccata label in PresentazioneView | `63189b9` | build OK, 33/3/0 |
 | 9 | B11 parità PDF — durata bloccata in OfferCard + "Preventivo valido fino al" nel footer | (questo commit) | build OK, 33/3/0 |
-| 10 | D15 step 1 — audit RLS read-only: colonne CTE sensibili, 7 rischi catalogati, tabelle fantasma, bundle scan | (questo commit) | docs-only |
+| 10 | D15 step 1 — audit RLS read-only: colonne CTE sensibili, 7 rischi catalogati, tabelle fantasma, bundle scan | `f78783a` | docs-only |
+| 11 | D15 R1: narrow SELECT cte + fetch provvigioni gated su !clientMode (belt-and-suspenders) | `b4781be` | build OK, 33/3/0 |
 
 ---
 
