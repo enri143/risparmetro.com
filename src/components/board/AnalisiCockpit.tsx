@@ -20,6 +20,7 @@ import { MaxiTrattativaPanel } from "./analisi/MaxiTrattativaPanel";
 import { PresentazioneView } from "./PresentazioneView";
 import { TrattativaView } from "./TrattativaView";
 import { UploadBollettaButton, type OcrDoneResult } from "./analisi/UploadBollettaButton";
+import { buildClientePatch, type ClienteAnagrafica, type Extracted as OcrExtracted } from "@/lib/board/ocrBolletta";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import { eur } from "@/lib/board/formatters";
@@ -369,6 +370,7 @@ export function AnalisiCockpit() {
   const [nomeCliente, setNomeCliente] = useState("");
   const [telefonoCliente, setTelefonoCliente] = useState("");
   const [noteCliente, setNoteCliente] = useState("");
+  const [ocrClientePatch, setOcrClientePatch] = useState<Partial<ClienteAnagrafica> | null>(null);
 
   // ── Helpers ──────────────────────────────────────────────────────────────────
   const set = (patch: Partial<DatiCliente>) => {
@@ -390,12 +392,11 @@ export function AnalisiCockpit() {
     setSaveError(null);
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleOcrApply = (patch: any, extracted: any) => {
+  const handleOcrApply = (patch: Record<string, unknown>, extracted: OcrExtracted) => {
     const dataPatch: Partial<DatiCliente> = {};
-    if (patch.consumoLuce != null) dataPatch.consumo_annuo_kwh = patch.consumoLuce;
-    if (patch.potenzaKw != null) dataPatch.potenza_impegnata_kw = patch.potenzaKw;
-    if (patch.consumoGas != null) dataPatch.consumo_annuo_smc = patch.consumoGas;
+    if (patch.consumoLuce != null) dataPatch.consumo_annuo_kwh = patch.consumoLuce as number;
+    if (patch.potenzaKw != null) dataPatch.potenza_impegnata_kw = patch.potenzaKw as number;
+    if (patch.consumoGas != null) dataPatch.consumo_annuo_smc = patch.consumoGas as number;
     if (extracted?.tipo && ["luce", "gas", "dual"].includes(extracted.tipo)) {
       dataPatch.tipo_fornitura = extracted.tipo as "luce" | "gas" | "dual";
     }
@@ -407,6 +408,16 @@ export function AnalisiCockpit() {
     if (extracted?.segmento === "business") setClienteSeg("business");
     else if (extracted?.segmento === "family") setClienteSeg("domestico");
     if (extracted?.residente != null) setResidenzaSeg(extracted.residente ? "residente" : "non_residente");
+
+    const cliPatch = buildClientePatch(extracted);
+    setOcrClientePatch(cliPatch);
+    // Prefilla nome se il form è vuoto e l'OCR ha estratto un intestatario
+    if (!nomeCliente) {
+      const nomeOcr = cliPatch.ragione_sociale
+        ?? [cliPatch.nome, cliPatch.cognome].filter(Boolean).join(' ')
+        ?? '';
+      if (nomeOcr) setNomeCliente(nomeOcr);
+    }
   };
 
   const handleOcrDone = (result: OcrDoneResult) => {
@@ -639,9 +650,10 @@ export function AnalisiCockpit() {
         throw new Error("Sessione non collegata: configura Supabase Auth prima di salvare.");
       }
 
-      // Upsert cliente se nome compilato
+      // Upsert cliente se nome compilato OPPURE OCR ha estratto anagrafica
       let clienteId: string | null = null;
-      if (nomeCliente.trim()) {
+      const ocrHasData = Object.keys(ocrClientePatch ?? {}).length > 0;
+      if (nomeCliente.trim() || ocrHasData) {
         const telTrim = telefonoCliente.trim();
         if (telTrim) {
           const { data: esistente } = await supabase
@@ -650,17 +662,28 @@ export function AnalisiCockpit() {
             .eq("telefono", telTrim)
             .limit(1)
             .maybeSingle();
-          if (esistente) clienteId = (esistente as { id: string }).id;
+          if (esistente) {
+            clienteId = (esistente as { id: string }).id;
+            if (ocrHasData) {
+              await supabase
+                .from("clienti")
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                .update(ocrClientePatch as any)
+                .eq("id", clienteId);
+            }
+          }
         }
         if (!clienteId) {
           const { data: nuovo } = await supabase
             .from("clienti")
             .insert({
               tenant_id: tenantId as string,
-              nome: nomeCliente.trim(),
+              nome: nomeCliente.trim() || null,
               cognome: null,
               telefono: telTrim || null,
-              segmento: isBusiness ? "business" : "residenziale",
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              ...(ocrClientePatch as any),
+              segmento: isBusiness ? "business" : "residenziale",  // explicit: wins over OCR
             })
             .select("id")
             .single();
@@ -694,7 +717,13 @@ export function AnalisiCockpit() {
             : null,
         stato: "bozza",
         bolletta_ocr: ocrResult
-          ? { extracted: ocrResult.extracted, raw: ocrResult.raw, source: "gemini+claude", extracted_at: ocrResult.extractedAt }
+          ? (() => {
+              const rawArr = Array.isArray(ocrResult.raw)
+                ? (ocrResult.raw as Array<{ source?: string }>)
+                : [];
+              const sources = [...new Set(rawArr.map((r) => r?.source).filter((s): s is string => !!s))];
+              return { extracted: ocrResult.extracted, raw: ocrResult.raw, source: sources.join('+') || 'ocr', extracted_at: ocrResult.extractedAt };
+            })()
           : null,
         bolletta_file_path: ocrResult?.filePath ?? null,
       });

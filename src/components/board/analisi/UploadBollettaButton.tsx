@@ -280,7 +280,7 @@ export function UploadBollettaButton({ dati, onApply, onOcrDone }: Props) {
                 </div>
               )}
 
-              <div className="rounded-md border bg-muted/30 p-3 text-xs space-y-1 max-h-48 overflow-auto">
+              <div className="rounded-md border bg-muted/30 p-3 text-xs space-y-1 max-h-64 overflow-auto">
                 <div className="font-semibold mb-1">Riepilogo unito (confidence {Math.round(conf * 100)}%)</div>
                 {merged.luce && (
                   <>
@@ -295,6 +295,40 @@ export function UploadBollettaButton({ dati, onApply, onOcrDone }: Props) {
                   <div><b>🔥 Gas</b> · {merged.gas.consumo_annuo_smc ?? "?"} Smc/anno · {merged.gas.prezzo_materia_smc ?? "?"} €/Smc · fisso {merged.gas.fisso_mese_eur ?? "?"} €/mese</div>
                 )}
                 <div>Segmento: {merged.segmento} {merged.residente ? "· residente" : ""} {merged.canone_rai ? "· canone RAI" : ""}</div>
+
+                {/* Anagrafica — solo campi presenti */}
+                {merged.anagrafica && (
+                  <div className="mt-1 pt-1 border-t border-border/40 space-y-0.5">
+                    <div className="font-medium">Anagrafica</div>
+                    {(merged.anagrafica.nome || merged.anagrafica.cognome) && (
+                      <div>{[merged.anagrafica.nome, merged.anagrafica.cognome].filter(Boolean).join(' ')}</div>
+                    )}
+                    {merged.anagrafica.ragione_sociale && (
+                      <div>{merged.anagrafica.ragione_sociale}</div>
+                    )}
+                    {merged.anagrafica.indirizzo && (
+                      <div>
+                        {merged.anagrafica.indirizzo}
+                        {merged.anagrafica.cap ? ` · ${merged.anagrafica.cap}` : ''}
+                        {merged.anagrafica.comune ? ` ${merged.anagrafica.comune}` : ''}
+                        {merged.anagrafica.provincia ? ` (${merged.anagrafica.provincia})` : ''}
+                      </div>
+                    )}
+                    {merged.anagrafica.pod && <div>POD: {merged.anagrafica.pod}</div>}
+                    {merged.anagrafica.pdr && <div>PDR: {merged.anagrafica.pdr}</div>}
+                  </div>
+                )}
+                {(merged.fornitore_attuale || merged.nome_offerta || merged.scadenza_offerta) && (
+                  <div className={merged.anagrafica ? '' : 'mt-1 pt-1 border-t border-border/40'}>
+                    {merged.fornitore_attuale && <div>Fornitore attuale: {merged.fornitore_attuale}</div>}
+                    {merged.nome_offerta && (
+                      <div>
+                        Offerta: {merged.nome_offerta}
+                        {merged.scadenza_offerta ? ` · scad. ${merged.scadenza_offerta}` : ''}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           )}
