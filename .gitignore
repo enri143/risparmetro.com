@@ -33,3 +33,7 @@ skills-lock.json
 
 # TypeScript build cache
 tsconfig.app.tsbuildinfo
+
+# Local artifacts
+risparmetro_src.zip
+.codex/
