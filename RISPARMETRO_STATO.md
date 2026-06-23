@@ -30,7 +30,7 @@ Legenda: ✅ fatto · ⏳ da fare · 🟡 parziale · ⏸️ in attesa esterna �
 - **B5** ✅ Sezione "Cliente (opzionale)" → upsert `clienti`, link `cliente_id` su simulazione
 - **B6** ✅ Toggle `showProvvigioni` — agente-only, **subordinato a clientMode**. Regola: provvigioni visibili SSE `!clientMode && showProvvigioni`. Guard nel leak-test.
 - **B7** ✅ Proiezione 12 mesi — **rifatta da zero su Modello A**. `proiezione.ts` puro TS (no React, no Supabase), `Proiezione12Mesi.tsx` (Recharts AreaChart, risparmio cumulato offerta selezionata), montata in AnalisiCockpit.
-- **B8** ⏳ 🔴 StoricoTab v2 su `simulazioni` (prima lettura multi-tenant seria → meglio DOPO D15-RLS)
+- **B8** ✅ StoricoTab v2 su `simulazioni` — query diretta (RLS per-tenant, nessuna edge function), snapshot immutabile read-only (splitSnapshot + stripProvvigioni), tab Storico montata in Board. Cross-tenant garantito dalla RLS verificata in D15, non testabile con vitest senza DB live.
 - **B9** ✅ 💰 PresentazioneView v2 / Salesboard — completa: Proiezione12Mesi (AreaChart) + BeforeAfterCard (BarChart Recharts + durata bloccata label con Lock icon). Layout grid 2-col iPad landscape. Zero provvigioni.
 - **B10** ⏳ 💰 OCR bolletta → autofill (`extract-bolletta-board` oggi è stub)
 - **B11** ✅ 💰 PDF brandizzato per tenant — logo + accent bar + dati + risparmio. Parità presentazione: durata bloccata nella card offerta (verde, solo se risparmio > 0). Footer: "Preventivo valido fino al gg/mm/aaaa" (+30 gg runtime).
@@ -73,12 +73,15 @@ Legenda: ✅ fatto · ⏳ da fare · 🟡 parziale · ⏸️ in attesa esterna �
 | 12 | D15 R2: rimosso hook orfano useSgProvvigioni (zero consumer, tabella fantasma sg_provvigioni) | `29df98f` | build OK, 33/3/0 |
 | 13 | D17 knip: rimuovi 10 file orfani residui (BeforeAfterBar, ClienteForm, DraftBanner, HeroRisparmio, SimulazioneBolletta, useDraftAutosave, iva, sgCodice, share, App.css) | `46cedf8` | build OK, 33/3/0 |
 | 14 | D17 knip: rimuovi 5 dipendenze inutilizzate (framer-motion, html2canvas, jspdf, @base-ui/react, @fontsource-variable/geist); pako promosso a diretta | `6860fc3` | build OK, 33/3/0 |
+| 15 | B8 S1 — helper storico (splitSnapshot + stripProvvigioni) con 4 test | `fbd582a` | build OK, 37/3/0 |
+| 16 | B8 S2 — StoricoTab v2: query diretta simulazioni, snapshot read-only, no provvigioni, no edge function | `f8c4d95` | build OK, 37/3/0 |
+| 17 | B8 S3 — monta tab Storico (BoardTab union + History icon + Board.tsx mount) | `3282bb6` | build OK, 37/3/0 |
 
 ---
 
 ## Prossimo step
 
-- **B8** — StoricoTab v2 su `simulazioni` (D15 R1+R2 completati, R3 parcheggiato → si può procedere).
+- **V2/V3** — Enrico scrive le liste contenuti (tips/obiezioni/close) → poi si genera il codice.
 - **V2/V3** — Enrico scrive le liste contenuti (tips/obiezioni/close) → poi si genera il codice.
 
 ---
