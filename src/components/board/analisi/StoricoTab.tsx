@@ -1,97 +1,305 @@
-import { useEffect, useState, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useCallback, useEffect, useState } from "react";
+import { AlertTriangle, ArrowLeft, Phone, Trash2, Zap, Flame } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { RotateCw, Phone, Trash2 } from "lucide-react";
-import type { DatiCliente, NoteCliente } from "@/lib/board/types";
+import { cn } from "@/lib/utils";
 import { eur } from "@/lib/board/formatters";
-import { toast } from "sonner";
+import { splitSnapshot, stripProvvigioni } from "@/lib/board/storico";
+import type { RisultatoOfferta } from "@/lib/board/calcoloOfferte";
 
-interface Riga {
-  id: string;
-  nome_cliente: string | null;
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+interface ClienteJoin {
+  nome: string | null;
+  cognome: string | null;
   telefono: string | null;
-  note: string | null;
-  tipo_utenza: string | null;
-  consumo_luce_kwh: number | null;
-  prezzo_luce_attuale: number | null;
-  fisso_luce_mese: number | null;
-  consumo_gas_smc: number | null;
-  prezzo_gas_attuale: number | null;
-  fisso_gas_mese: number | null;
-  potenza_kw: number | null;
-  residente: boolean | null;
-  miglior_risparmio_luce: number | null;
-  miglior_risparmio_gas: number | null;
-  created_at: string;
 }
 
-export function StoricoTab({ onRicarica }: { onRicarica: (d: DatiCliente, n: NoteCliente) => void }) {
-  const [rows, setRows] = useState<Riga[] | null>(null);
+interface SimulazioneRow {
+  id: string;
+  dati_input: Record<string, unknown> | null;
+  snapshot_offerte: (RisultatoOfferta & { _util?: string })[] | null;
+  offerta_scelta_id: string | null;
+  risparmio_annuo: number | null;
+  risparmio_percentuale: number | null;
+  stato: "bozza" | "inviata" | "firmata" | null;
+  created_at: string;
+  clienti: ClienteJoin | null;
+}
 
-  const carica = useCallback(async () => {
-    const { data, error } = await supabase.functions.invoke("board-storico", { body: { action: "list" } });
-    if (error || data?.error) {
-      toast.error("Errore caricamento storico");
-      setRows([]);
-      return;
-    }
-    setRows((data?.items ?? []) as Riga[]);
-  }, []);
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
-  useEffect(() => { carica(); }, [carica]);
+function fmtData(iso: string) {
+  return new Date(iso).toLocaleDateString("it-IT", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
 
-  const ricarica = (r: Riga) => {
-    onRicarica(
-      {
-        segmento: r.tipo_utenza === "business" ? "business" : "family",
-        potenzaKw: r.potenza_kw ?? 3,
-        residente: r.residente ?? true,
-        canoneRai: r.residente ?? true,
-        consumoLuce: r.consumo_luce_kwh ?? 0,
-        prezzoLuce: Number(r.prezzo_luce_attuale ?? 0),
-        fissoLuceMese: Number(r.fisso_luce_mese ?? 0),
-        consumoGas: r.consumo_gas_smc ?? 0,
-        prezzoGas: Number(r.prezzo_gas_attuale ?? 0),
-        fissoGasMese: Number(r.fisso_gas_mese ?? 0),
-      },
-      { nomeCliente: r.nome_cliente ?? "", telefono: r.telefono ?? "", note: r.note ?? "" },
-    );
-    toast.success("Dati ricaricati nel form");
-  };
+function nomeCliente(c: ClienteJoin | null) {
+  if (!c) return "Senza nome";
+  return [c.nome, c.cognome].filter(Boolean).join(" ") || "Senza nome";
+}
 
-  const elimina = async (id: string) => {
-    if (!confirm("Eliminare questa analisi?")) return;
-    await supabase.functions.invoke("board-storico", { body: { action: "delete", id } });
-    carica();
-  };
+const STATO_LABEL: Record<string, string> = {
+  bozza: "Bozza",
+  inviata: "Inviata",
+  firmata: "Firmata",
+};
 
-  if (rows === null) return <Skeleton className="h-64" />;
-  if (rows.length === 0) return <p className="text-sm text-muted-foreground py-12 text-center">Nessuna analisi salvata.</p>;
+const STATO_VARIANT: Record<string, "secondary" | "default" | "outline"> = {
+  bozza: "secondary",
+  inviata: "outline",
+  firmata: "default",
+};
+
+// ── OfferSnapshotCard ─────────────────────────────────────────────────────────
+
+function OfferSnapshotCard({
+  r,
+  isSelected,
+}: {
+  r: ReturnType<typeof stripProvvigioni>;
+  isSelected: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "rounded-xl border border-border-ui bg-white p-4 space-y-2",
+        isSelected && "ring-2 ring-brand",
+      )}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <p className="text-sm font-semibold text-text-base">{r.nome}</p>
+          <p className="text-xs text-text-muted mt-0.5">{r.fornitore_nome} · {r.tipo_prezzo}</p>
+        </div>
+        {isSelected && (
+          <Badge className="shrink-0 text-[10px]">Scelta</Badge>
+        )}
+      </div>
+
+      {r.durata_blocco_mesi != null && (
+        <p className="text-xs text-text-muted">Bloccato {r.durata_blocco_mesi} mesi</p>
+      )}
+
+      <div className="flex items-center justify-between pt-1 border-t border-border-ui">
+        <span className="text-xs text-text-muted">Totale annuo</span>
+        <span className="text-sm font-semibold text-text-base">{eur(r.costo_annuo_totale)} €</span>
+      </div>
+
+      {r.risparmio_annuo > 0 && (
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-text-muted">Risparmio stimato</span>
+          <span className="text-sm font-semibold text-savings">
+            +{eur(r.risparmio_annuo)} € ({r.risparmio_percentuale.toFixed(1)}%)
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── DetailView ────────────────────────────────────────────────────────────────
+
+function DetailView({
+  sim,
+  onBack,
+  onElimina,
+}: {
+  sim: SimulazioneRow;
+  onBack: () => void;
+  onElimina: (id: string) => void;
+}) {
+  const { luce, gas } = splitSnapshot(sim.snapshot_offerte ?? []);
 
   return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={onBack}
+          className="p-2 rounded-lg border border-border-ui text-text-muted hover:bg-surface-subtle min-h-[44px] min-w-[44px] flex items-center justify-center"
+        >
+          <ArrowLeft className="w-4 h-4" />
+        </button>
+        <div className="flex-1 min-w-0">
+          <p className="font-semibold text-text-base truncate">{nomeCliente(sim.clienti)}</p>
+          <p className="text-xs text-text-muted">{fmtData(sim.created_at)}</p>
+        </div>
+        {sim.stato && (
+          <Badge variant={STATO_VARIANT[sim.stato] ?? "secondary"}>
+            {STATO_LABEL[sim.stato] ?? sim.stato}
+          </Badge>
+        )}
+      </div>
+
+      {/* Snapshot warning */}
+      <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+        <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+        <span>
+          Snapshot storico — prezzi congelati al {fmtData(sim.created_at)}.
+          Non riflette i prezzi attuali.
+        </span>
+      </div>
+
+      {/* Luce offers */}
+      {luce.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-text-muted uppercase tracking-wide">
+            <Zap className="w-3.5 h-3.5 text-yellow-500" /> Elettricità
+          </div>
+          {luce.map((r) => (
+            <OfferSnapshotCard
+              key={r.cte_id}
+              r={stripProvvigioni(r)}
+              isSelected={r.cte_id === sim.offerta_scelta_id}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Gas offers */}
+      {gas.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-text-muted uppercase tracking-wide">
+            <Flame className="w-3.5 h-3.5 text-orange-500" /> Gas naturale
+          </div>
+          {gas.map((r) => (
+            <OfferSnapshotCard
+              key={r.cte_id}
+              r={stripProvvigioni(r)}
+              isSelected={r.cte_id === sim.offerta_scelta_id}
+            />
+          ))}
+        </div>
+      )}
+
+      {luce.length === 0 && gas.length === 0 && (
+        <p className="text-sm text-text-muted text-center py-8">Snapshot vuoto.</p>
+      )}
+
+      {/* Delete */}
+      <div className="pt-2 border-t border-border-ui">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-destructive gap-1.5"
+          onClick={() => onElimina(sim.id)}
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+          Elimina analisi
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ── StoricoTab ────────────────────────────────────────────────────────────────
+
+export function StoricoTab() {
+  const [rows, setRows] = useState<SimulazioneRow[] | null>(null);
+  const [selected, setSelected] = useState<SimulazioneRow | null>(null);
+
+  const carica = useCallback(async () => {
+    const { data } = await supabase
+      .from("simulazioni")
+      .select(
+        "id, dati_input, snapshot_offerte, offerta_scelta_id, risparmio_annuo, risparmio_percentuale, stato, created_at, clienti(nome, cognome, telefono)",
+      )
+      .order("created_at", { ascending: false });
+    setRows((data ?? []) as unknown as SimulazioneRow[]);
+  }, []);
+
+  useEffect(() => {
+    void carica();
+  }, [carica]);
+
+  const handleElimina = async (id: string) => {
+    if (!confirm("Eliminare questa analisi? L'azione non è reversibile.")) return;
+    await supabase.from("simulazioni").delete().eq("id", id);
+    setSelected(null);
+    void carica();
+  };
+
+  // Loading
+  if (rows === null) {
+    return (
+      <div className="space-y-3">
+        {[0, 1, 2].map((i) => (
+          <Skeleton key={i} className="h-24 rounded-xl" />
+        ))}
+      </div>
+    );
+  }
+
+  // Detail view
+  if (selected) {
+    return (
+      <DetailView
+        sim={selected}
+        onBack={() => setSelected(null)}
+        onElimina={handleElimina}
+      />
+    );
+  }
+
+  // Empty
+  if (rows.length === 0) {
+    return (
+      <p className="text-sm text-text-muted py-12 text-center">
+        Nessuna analisi salvata.
+      </p>
+    );
+  }
+
+  // List
+  return (
     <div className="space-y-3">
-      {rows.map((r) => {
-        const data = new Date(r.created_at).toLocaleDateString("it-IT", { day: "2-digit", month: "2-digit", year: "2-digit" });
+      {rows.map((sim) => {
+        const risparmio = sim.risparmio_annuo ?? 0;
         return (
-          <Card key={r.id} className="p-4 space-y-2">
+          <Card key={sim.id} className="p-4 space-y-2 border border-border-ui shadow-none">
             <div className="flex items-start justify-between gap-2">
-              <div className="font-semibold">{r.nome_cliente || "Senza nome"}</div>
-              <div className="text-xs text-muted-foreground">{data}</div>
+              <div className="min-w-0">
+                <p className="font-semibold text-sm text-text-base truncate">
+                  {nomeCliente(sim.clienti)}
+                </p>
+                <p className="text-xs text-text-muted mt-0.5">{fmtData(sim.created_at)}</p>
+              </div>
+              {sim.stato && (
+                <Badge variant={STATO_VARIANT[sim.stato] ?? "secondary"} className="shrink-0 text-[10px]">
+                  {STATO_LABEL[sim.stato] ?? sim.stato}
+                </Badge>
+              )}
             </div>
-            {r.telefono && <div className="flex items-center gap-1 text-xs text-muted-foreground"><Phone className="w-3 h-3" />{r.telefono}</div>}
-            <div className="text-xs text-muted-foreground">⚡ {r.consumo_luce_kwh ?? 0} kWh · 🔥 {r.consumo_gas_smc ?? 0} Smc</div>
-            <div className="text-sm font-medium text-green-700">
-              Risparmio: +{eur(Number(r.miglior_risparmio_luce ?? 0))} luce · +{eur(Number(r.miglior_risparmio_gas ?? 0))} gas
-            </div>
-            {r.note && <div className="text-xs italic text-muted-foreground">📝 "{r.note}"</div>}
-            <div className="flex gap-2 pt-1">
-              <Button size="sm" variant="outline" onClick={() => ricarica(r)} className="gap-1">
-                <RotateCw className="w-3 h-3" /> Ricarica
-              </Button>
-              <Button size="sm" variant="ghost" onClick={() => elimina(r.id)} className="gap-1 text-destructive">
-                <Trash2 className="w-3 h-3" />
+
+            {sim.clienti?.telefono && (
+              <div className="flex items-center gap-1 text-xs text-text-muted">
+                <Phone className="w-3 h-3" />
+                {sim.clienti.telefono}
+              </div>
+            )}
+
+            {risparmio > 0 && (
+              <p className="text-sm font-semibold text-savings">
+                +{eur(risparmio)} € / anno
+              </p>
+            )}
+
+            <div className="pt-1">
+              <Button
+                size="sm"
+                variant="outline"
+                className="min-h-[44px]"
+                onClick={() => setSelected(sim)}
+              >
+                Apri
               </Button>
             </div>
           </Card>
