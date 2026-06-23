@@ -5,17 +5,16 @@ import {
   User,
   Zap,
 } from "lucide-react";
-import { UploadBollettaButton, type OcrDoneResult } from "./UploadBollettaButton";
-import { type Extracted as OcrExtracted } from "@/lib/board/ocrBolletta";
+import { useOutletContext } from "react-router-dom";
+import { UploadBollettaButton } from "./UploadBollettaButton";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import {
-  type DatiCliente,
-  type PrezzoMercato,
   type TipoFornitura,
   type UsoGas,
 } from "@/lib/board/calcoloOfferte";
-import type { ZonaRow, ClienteSeg, ResidenzaSeg } from "./cockpitShared";
+import type { ClienteSeg, ResidenzaSeg } from "./cockpitShared";
+import type { AnalisiCtx } from "../AnalisiCockpit";
 
 const TIPO_FORNITURA_OPT: { v: TipoFornitura; l: string }[] = [
   { v: "luce", l: "Luce" },
@@ -59,139 +58,72 @@ function SegControl<T extends string>({
   );
 }
 
-interface AnalisiSetupProps {
-  dati: DatiCliente;
-  set: (patch: Partial<DatiCliente>) => void;
-  clienteSeg: ClienteSeg;
-  setClienteSeg: (v: ClienteSeg) => void;
-  residenzaSeg: ResidenzaSeg;
-  setResidenzaSeg: (v: ResidenzaSeg) => void;
-  isBusiness: boolean;
-  potenze: number[];
-  potenzaCustom: boolean;
-  setPotenzaCustom: (v: boolean) => void;
-  prezzoMateriaLuce: string;
-  setPrezzoMateriaLuce: (v: string) => void;
-  quotaFissaLuceAtt: string;
-  setQuotaFissaLuceAtt: (v: string) => void;
-  prezzoMateriaGas: string;
-  setPrezzoMateriaGas: (v: string) => void;
-  quotaFissaGasAtt: string;
-  setQuotaFissaGasAtt: (v: string) => void;
-  showLuce: boolean;
-  showGas: boolean;
-  regione: string;
-  setRegione: (v: string) => void;
-  showAdvanced: boolean;
-  setShowAdvanced: (v: boolean) => void;
-  zones: ZonaRow[];
-  zonaInfo: ZonaRow | undefined;
-  prezziMercato: PrezzoMercato;
-  setShowResults: (v: boolean) => void;
-  setPresentationMode: (v: boolean) => void;
-  resetResults: () => void;
-  canCalcola: boolean;
-  loadingZona: boolean;
-  nomeCliente: string;
-  setNomeCliente: (v: string) => void;
-  cognomeCliente: string;
-  setCognomeCliente: (v: string) => void;
-  ragioneSocialeCliente: string;
-  setRagioneSocialeCliente: (v: string) => void;
-  telefonoCliente: string;
-  setTelefonoCliente: (v: string) => void;
-  noteCliente: string;
-  setNoteCliente: (v: string) => void;
-  indirizzoCliente: string;
-  setIndirizzoCliente: (v: string) => void;
-  comuneCliente: string;
-  setComuneCliente: (v: string) => void;
-  capCliente: string;
-  setCapCliente: (v: string) => void;
-  provinciaCliente: string;
-  setProvinciaCliente: (v: string) => void;
-  podCliente: string;
-  setPodCliente: (v: string) => void;
-  pdrCliente: string;
-  setPdrCliente: (v: string) => void;
-  fornitoreAttualeCliente: string;
-  setFornitoreAttualeCliente: (v: string) => void;
-  offertaAttualeCliente: string;
-  setOffertaAttualeCliente: (v: string) => void;
-  scadenzaOffertaCliente: string;
-  setScadenzaOffertaCliente: (v: string) => void;
-  clienteDettaglioOpen: boolean;
-  setClienteDettaglioOpen: (v: boolean) => void;
-  handleOcrApply: (patch: Record<string, unknown>, extracted: OcrExtracted) => void;
-  handleOcrDone: (result: OcrDoneResult) => void;
-}
-
-export function AnalisiSetup({
-  dati,
-  set,
-  clienteSeg,
-  setClienteSeg,
-  residenzaSeg,
-  setResidenzaSeg,
-  isBusiness,
-  potenze,
-  potenzaCustom,
-  setPotenzaCustom,
-  prezzoMateriaLuce,
-  setPrezzoMateriaLuce,
-  quotaFissaLuceAtt,
-  setQuotaFissaLuceAtt,
-  prezzoMateriaGas,
-  setPrezzoMateriaGas,
-  quotaFissaGasAtt,
-  setQuotaFissaGasAtt,
-  showLuce,
-  showGas,
-  regione,
-  setRegione,
-  showAdvanced,
-  setShowAdvanced,
-  zones,
-  zonaInfo,
-  prezziMercato,
-  setShowResults,
-  setPresentationMode,
-  resetResults,
-  canCalcola,
-  loadingZona,
-  nomeCliente,
-  setNomeCliente,
-  cognomeCliente,
-  setCognomeCliente,
-  ragioneSocialeCliente,
-  setRagioneSocialeCliente,
-  telefonoCliente,
-  setTelefonoCliente,
-  noteCliente,
-  setNoteCliente,
-  indirizzoCliente,
-  setIndirizzoCliente,
-  comuneCliente,
-  setComuneCliente,
-  capCliente,
-  setCapCliente,
-  provinciaCliente,
-  setProvinciaCliente,
-  podCliente,
-  setPodCliente,
-  pdrCliente,
-  setPdrCliente,
-  fornitoreAttualeCliente,
-  setFornitoreAttualeCliente,
-  offertaAttualeCliente,
-  setOffertaAttualeCliente,
-  scadenzaOffertaCliente,
-  setScadenzaOffertaCliente,
-  clienteDettaglioOpen,
-  setClienteDettaglioOpen,
-  handleOcrApply,
-  handleOcrDone,
-}: AnalisiSetupProps) {
+export function AnalisiSetup() {
+  const {
+    dati,
+    set,
+    clienteSeg,
+    setClienteSeg,
+    residenzaSeg,
+    setResidenzaSeg,
+    isBusiness,
+    potenze,
+    potenzaCustom,
+    setPotenzaCustom,
+    prezzoMateriaLuce,
+    setPrezzoMateriaLuce,
+    quotaFissaLuceAtt,
+    setQuotaFissaLuceAtt,
+    prezzoMateriaGas,
+    setPrezzoMateriaGas,
+    quotaFissaGasAtt,
+    setQuotaFissaGasAtt,
+    showLuce,
+    showGas,
+    regione,
+    setRegione,
+    showAdvanced,
+    setShowAdvanced,
+    zones,
+    zonaInfo,
+    prezziMercato,
+    goToOfferte,
+    resetResults,
+    canCalcola,
+    loadingZona,
+    nomeCliente,
+    setNomeCliente,
+    cognomeCliente,
+    setCognomeCliente,
+    ragioneSocialeCliente,
+    setRagioneSocialeCliente,
+    telefonoCliente,
+    setTelefonoCliente,
+    noteCliente,
+    setNoteCliente,
+    indirizzoCliente,
+    setIndirizzoCliente,
+    comuneCliente,
+    setComuneCliente,
+    capCliente,
+    setCapCliente,
+    provinciaCliente,
+    setProvinciaCliente,
+    podCliente,
+    setPodCliente,
+    pdrCliente,
+    setPdrCliente,
+    fornitoreAttualeCliente,
+    setFornitoreAttualeCliente,
+    offertaAttualeCliente,
+    setOffertaAttualeCliente,
+    scadenzaOffertaCliente,
+    setScadenzaOffertaCliente,
+    clienteDettaglioOpen,
+    setClienteDettaglioOpen,
+    handleOcrApply,
+    handleOcrDone,
+  } = useOutletContext<AnalisiCtx>();
   return (
     <div data-testid="analisi-setup" className="grid xl:grid-cols-12 gap-5 items-start">
       {/* Form */}
@@ -434,8 +366,7 @@ export function AnalisiSetup({
                   value={regione}
                   onChange={(e) => {
                     setRegione(e.target.value);
-                    setShowResults(false);
-                    setPresentationMode(false);
+                    resetResults();
                   }}
                   className="w-full h-12 rounded-lg border border-border-ui bg-surface-subtle px-4 text-sm text-text-base focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand appearance-none"
                 >
@@ -675,8 +606,7 @@ export function AnalisiSetup({
           type="button"
           disabled={!canCalcola}
           onClick={() => {
-            setShowResults(true);
-            setPresentationMode(false);
+            goToOfferte();
           }}
           className={cn(
             "w-full h-[52px] rounded-xl font-semibold text-base flex items-center justify-center gap-2 transition-all",

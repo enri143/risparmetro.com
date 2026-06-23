@@ -1,16 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useLocation, Outlet } from "react-router-dom";
 import {
   Eye,
-  Flame,
   Maximize2,
   RotateCcw,
   ShieldCheck,
   ShieldOff,
-  Zap,
 } from "lucide-react";
 import { ConfrontoDettagliatoView } from "./ConfrontoDettagliatoView";
 import { MaxiTrattativaPanel } from "./analisi/MaxiTrattativaPanel";
-import { PresentazioneView } from "./PresentazioneView";
 import { TrattativaView } from "./TrattativaView";
 import { type OcrDoneResult } from "./analisi/UploadBollettaButton";
 import { buildClientePatch, type Extracted as OcrExtracted } from "@/lib/board/ocrBolletta";
@@ -30,9 +28,79 @@ import {
   CUTOVER_COMPONENTI,
   type ParametriAreraLuce,
 } from "@/lib/calcolo/parametriArera";
-import { AnalisiSetup } from "./analisi/AnalisiSetup";
-import { AnalisiOfferte } from "./analisi/AnalisiOfferte";
 import type { ZonaRow, ClienteSeg, ResidenzaSeg } from "./analisi/cockpitShared";
+
+// ── AnalisiCtx — condiviso via Outlet context con i 3 sub-route ───────────────
+
+export type AnalisiCtx = {
+  dati: DatiCliente;
+  set: (patch: Partial<DatiCliente>) => void;
+  clienteSeg: ClienteSeg;
+  setClienteSeg: (v: ClienteSeg) => void;
+  residenzaSeg: ResidenzaSeg;
+  setResidenzaSeg: (v: ResidenzaSeg) => void;
+  isBusiness: boolean;
+  potenze: number[];
+  potenzaCustom: boolean;
+  setPotenzaCustom: (v: boolean) => void;
+  prezzoMateriaLuce: string;
+  setPrezzoMateriaLuce: (v: string) => void;
+  quotaFissaLuceAtt: string;
+  setQuotaFissaLuceAtt: (v: string) => void;
+  prezzoMateriaGas: string;
+  setPrezzoMateriaGas: (v: string) => void;
+  quotaFissaGasAtt: string;
+  setQuotaFissaGasAtt: (v: string) => void;
+  showLuce: boolean;
+  showGas: boolean;
+  regione: string;
+  setRegione: (v: string) => void;
+  showAdvanced: boolean;
+  setShowAdvanced: (v: boolean) => void;
+  zones: ZonaRow[];
+  zonaInfo: ZonaRow | undefined;
+  prezziMercato: PrezzoMercato;
+  canCalcola: boolean;
+  loadingZona: boolean;
+  nomeCliente: string; setNomeCliente: (v: string) => void;
+  cognomeCliente: string; setCognomeCliente: (v: string) => void;
+  ragioneSocialeCliente: string; setRagioneSocialeCliente: (v: string) => void;
+  telefonoCliente: string; setTelefonoCliente: (v: string) => void;
+  noteCliente: string; setNoteCliente: (v: string) => void;
+  indirizzoCliente: string; setIndirizzoCliente: (v: string) => void;
+  comuneCliente: string; setComuneCliente: (v: string) => void;
+  capCliente: string; setCapCliente: (v: string) => void;
+  provinciaCliente: string; setProvinciaCliente: (v: string) => void;
+  podCliente: string; setPodCliente: (v: string) => void;
+  pdrCliente: string; setPdrCliente: (v: string) => void;
+  fornitoreAttualeCliente: string; setFornitoreAttualeCliente: (v: string) => void;
+  offertaAttualeCliente: string; setOffertaAttualeCliente: (v: string) => void;
+  scadenzaOffertaCliente: string; setScadenzaOffertaCliente: (v: string) => void;
+  clienteDettaglioOpen: boolean; setClienteDettaglioOpen: (v: boolean) => void;
+  handleOcrApply: (patch: Record<string, unknown>, extracted: OcrExtracted) => void;
+  handleOcrDone: (result: OcrDoneResult) => void;
+  goToOfferte: () => void;
+  resetResults: () => void;
+  risultatiLuce: RisultatoOfferta[];
+  risultatiGas: RisultatoOfferta[];
+  spesaAnnuaLuce: number;
+  spesaAnnuaGas: number;
+  haSpesaLuce: boolean;
+  haSpesaGas: boolean;
+  bestLuce: RisultatoOfferta | undefined;
+  bestGas: RisultatoOfferta | undefined;
+  totalRisparmio: number;
+  selectedCteId: string | null;
+  setSelectedCteId: (id: string | null) => void;
+  savingSimulazione: boolean;
+  saveOk: boolean;
+  saveError: string | null;
+  handleSalvaSimulazione: () => Promise<void>;
+  setTrattativaOfferta: (o: RisultatoOfferta | null) => void;
+  setShowDettagliato: (v: boolean) => void;
+  parametriLuce: ParametriRegolati | null;
+  parametriGas: ParametriRegolati | null;
+};
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -129,6 +197,9 @@ const FALLBACK_GAS: ParametriRegolati = {
 // ── AnalisiCockpit ────────────────────────────────────────────────────────────
 
 export function AnalisiCockpit() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
   // ── Data state ──────────────────────────────────────────────────────────────
   const [zones, setZones] = useState<ZonaRow[]>([]);
   const [rawCtes, setRawCtes] = useState<SupabaseCteRow[]>([]);
@@ -159,8 +230,6 @@ export function AnalisiCockpit() {
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   // ── Results state ────────────────────────────────────────────────────────────
-  const [showResults, setShowResults] = useState(false);
-  const [presentationMode, setPresentationMode] = useState(false);
   const [showDettagliato, setShowDettagliato] = useState(false);
   const [clientMode, setClientMode] = useState(false);
   const [showProvvigioni, setShowProvvigioni] = useState(true);
@@ -194,8 +263,6 @@ export function AnalisiCockpit() {
   // ── Helpers ──────────────────────────────────────────────────────────────────
   const set = (patch: Partial<DatiCliente>) => {
     setDati((d) => ({ ...d, ...patch }));
-    setShowResults(false);
-    setPresentationMode(false);
     setShowDettagliato(false);
     setSelectedCteId(null);
     setSaveOk(false);
@@ -203,8 +270,7 @@ export function AnalisiCockpit() {
   };
 
   const resetResults = () => {
-    setShowResults(false);
-    setPresentationMode(false);
+    navigate("/board/analisi/dati", { replace: true });
     setShowDettagliato(false);
     setSelectedCteId(null);
     setSaveOk(false);
@@ -384,6 +450,9 @@ export function AnalisiCockpit() {
   const showGas = dati.tipo_fornitura === "gas" || dati.tipo_fornitura === "dual";
   const zonaInfo = zones.find((z) => z.regione === regione);
 
+  const isOnResults = location.pathname.endsWith("/offerte") || location.pathname.endsWith("/presenta");
+  const isPresenta = location.pathname.endsWith("/presenta");
+
   // Spesa annua computata: prezzo × consumo + quota × 12
   const spesaAnnuaLuce = useMemo(() => {
     const consumo = dati.consumo_annuo_kwh ?? 0;
@@ -406,7 +475,7 @@ export function AnalisiCockpit() {
   );
 
   const risultatiLuce = useMemo(() => {
-    if (!showResults || !showLuce || !(dati.consumo_annuo_kwh ?? 0)) return [];
+    if (!showLuce || !(dati.consumo_annuo_kwh ?? 0)) return [];
     // Usa componenti_regolate quando disponibile (data >= 2026-04-01), altrimenti parametri_regolati
     const useArera = areraLuce !== null && new Date() >= CUTOVER_COMPONENTI;
     const effParamLuce: ParametriRegolati = useArera
@@ -433,10 +502,10 @@ export function AnalisiCockpit() {
       null,
       effPrezzi,
     );
-  }, [showResults, showLuce, dati, tipoCliente, clienteSeg, prezzoMateriaLuce, quotaFissaLuceAtt, ctes, parametriLuce, prezziMercato, areraLuce]);
+  }, [showLuce, dati, tipoCliente, clienteSeg, prezzoMateriaLuce, quotaFissaLuceAtt, ctes, parametriLuce, prezziMercato, areraLuce]);
 
   const risultatiGas = useMemo(() => {
-    if (!showResults || !showGas || !(dati.consumo_annuo_smc ?? 0)) return [];
+    if (!showGas || !(dati.consumo_annuo_smc ?? 0)) return [];
     return calcolaConfrontoOfferte(
       {
         ...dati,
@@ -455,7 +524,7 @@ export function AnalisiCockpit() {
       parametriGas ?? FALLBACK_GAS,
       prezziMercato,
     );
-  }, [showResults, showGas, dati, tipoCliente, clienteSeg, prezzoMateriaGas, quotaFissaGasAtt, ctes, parametriGas, prezziMercato]);
+  }, [showGas, dati, tipoCliente, clienteSeg, prezzoMateriaGas, quotaFissaGasAtt, ctes, parametriGas, prezziMercato]);
 
   const haDatiAttualiLuce = (parseFloat(prezzoMateriaLuce) || 0) > 0 && (parseFloat(quotaFissaLuceAtt) || 0) >= 0;
   const haDatiAttualiGas  = (parseFloat(prezzoMateriaGas)  || 0) > 0 && (parseFloat(quotaFissaGasAtt)  || 0) >= 0;
@@ -580,7 +649,7 @@ export function AnalisiCockpit() {
     );
   }
 
-  if (showDettagliato && showResults) {
+  if (showDettagliato && isOnResults) {
     return (
       <ConfrontoDettagliatoView
         risultatiLuce={risultatiLuce}
@@ -602,10 +671,81 @@ export function AnalisiCockpit() {
     );
   }
 
+  // ── Outlet context ────────────────────────────────────────────────────────────
+  const ctx: AnalisiCtx = {
+    dati,
+    set,
+    clienteSeg,
+    setClienteSeg,
+    residenzaSeg,
+    setResidenzaSeg,
+    isBusiness,
+    potenze,
+    potenzaCustom,
+    setPotenzaCustom,
+    prezzoMateriaLuce,
+    setPrezzoMateriaLuce,
+    quotaFissaLuceAtt,
+    setQuotaFissaLuceAtt,
+    prezzoMateriaGas,
+    setPrezzoMateriaGas,
+    quotaFissaGasAtt,
+    setQuotaFissaGasAtt,
+    showLuce,
+    showGas,
+    regione,
+    setRegione,
+    showAdvanced,
+    setShowAdvanced,
+    zones,
+    zonaInfo,
+    prezziMercato,
+    canCalcola,
+    loadingZona,
+    nomeCliente, setNomeCliente,
+    cognomeCliente, setCognomeCliente,
+    ragioneSocialeCliente, setRagioneSocialeCliente,
+    telefonoCliente, setTelefonoCliente,
+    noteCliente, setNoteCliente,
+    indirizzoCliente, setIndirizzoCliente,
+    comuneCliente, setComuneCliente,
+    capCliente, setCapCliente,
+    provinciaCliente, setProvinciaCliente,
+    podCliente, setPodCliente,
+    pdrCliente, setPdrCliente,
+    fornitoreAttualeCliente, setFornitoreAttualeCliente,
+    offertaAttualeCliente, setOffertaAttualeCliente,
+    scadenzaOffertaCliente, setScadenzaOffertaCliente,
+    clienteDettaglioOpen, setClienteDettaglioOpen,
+    handleOcrApply,
+    handleOcrDone,
+    goToOfferte: () => navigate("/board/analisi/offerte"),
+    resetResults,
+    risultatiLuce,
+    risultatiGas,
+    spesaAnnuaLuce,
+    spesaAnnuaGas,
+    haSpesaLuce,
+    haSpesaGas,
+    bestLuce,
+    bestGas,
+    totalRisparmio,
+    selectedCteId,
+    setSelectedCteId,
+    savingSimulazione,
+    saveOk,
+    saveError,
+    handleSalvaSimulazione,
+    setTrattativaOfferta,
+    setShowDettagliato,
+    parametriLuce,
+    parametriGas,
+  };
+
   // ── Render ────────────────────────────────────────────────────────────────────
   return (
     <div className="mx-auto px-4 sm:px-6 py-5 max-w-screen-xl">
-      {showMaxi && showResults && (
+      {showMaxi && isOnResults && (
         <MaxiTrattativaPanel
           luce={risultatiLuce}
           gas={risultatiGas}
@@ -626,7 +766,7 @@ export function AnalisiCockpit() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-text-base">Analisi Fornitura</h1>
-        {showResults && (
+        {isOnResults && (
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -647,16 +787,16 @@ export function AnalisiCockpit() {
             </button>
             <button
               type="button"
-              onClick={() => setPresentationMode((v) => !v)}
+              onClick={() => navigate(isPresenta ? "/board/analisi/offerte" : "/board/analisi/presenta")}
               className={cn(
                 "flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-medium transition-all min-h-[44px]",
-                presentationMode
+                isPresenta
                   ? "bg-brand text-brand-foreground border-brand shadow-sm"
                   : "bg-white text-text-base border-border-ui hover:bg-surface-subtle",
               )}
             >
               <Eye className="w-4 h-4" />
-              {presentationMode ? "Modalità Presentazione" : "Presentazione"}
+              {isPresenta ? "Modalità Presentazione" : "Presentazione"}
             </button>
             <button
               type="button"
@@ -680,127 +820,7 @@ export function AnalisiCockpit() {
         )}
       </div>
 
-      <AnalisiSetup
-        dati={dati}
-        set={set}
-        clienteSeg={clienteSeg}
-        setClienteSeg={setClienteSeg}
-        residenzaSeg={residenzaSeg}
-        setResidenzaSeg={setResidenzaSeg}
-        isBusiness={isBusiness}
-        potenze={potenze}
-        potenzaCustom={potenzaCustom}
-        setPotenzaCustom={setPotenzaCustom}
-        prezzoMateriaLuce={prezzoMateriaLuce}
-        setPrezzoMateriaLuce={setPrezzoMateriaLuce}
-        quotaFissaLuceAtt={quotaFissaLuceAtt}
-        setQuotaFissaLuceAtt={setQuotaFissaLuceAtt}
-        prezzoMateriaGas={prezzoMateriaGas}
-        setPrezzoMateriaGas={setPrezzoMateriaGas}
-        quotaFissaGasAtt={quotaFissaGasAtt}
-        setQuotaFissaGasAtt={setQuotaFissaGasAtt}
-        showLuce={showLuce}
-        showGas={showGas}
-        regione={regione}
-        setRegione={setRegione}
-        showAdvanced={showAdvanced}
-        setShowAdvanced={setShowAdvanced}
-        zones={zones}
-        zonaInfo={zonaInfo}
-        prezziMercato={prezziMercato}
-        setShowResults={setShowResults}
-        setPresentationMode={setPresentationMode}
-        resetResults={resetResults}
-        canCalcola={canCalcola}
-        loadingZona={loadingZona}
-        nomeCliente={nomeCliente}
-        setNomeCliente={setNomeCliente}
-        cognomeCliente={cognomeCliente}
-        setCognomeCliente={setCognomeCliente}
-        ragioneSocialeCliente={ragioneSocialeCliente}
-        setRagioneSocialeCliente={setRagioneSocialeCliente}
-        telefonoCliente={telefonoCliente}
-        setTelefonoCliente={setTelefonoCliente}
-        noteCliente={noteCliente}
-        setNoteCliente={setNoteCliente}
-        indirizzoCliente={indirizzoCliente}
-        setIndirizzoCliente={setIndirizzoCliente}
-        comuneCliente={comuneCliente}
-        setComuneCliente={setComuneCliente}
-        capCliente={capCliente}
-        setCapCliente={setCapCliente}
-        provinciaCliente={provinciaCliente}
-        setProvinciaCliente={setProvinciaCliente}
-        podCliente={podCliente}
-        setPodCliente={setPodCliente}
-        pdrCliente={pdrCliente}
-        setPdrCliente={setPdrCliente}
-        fornitoreAttualeCliente={fornitoreAttualeCliente}
-        setFornitoreAttualeCliente={setFornitoreAttualeCliente}
-        offertaAttualeCliente={offertaAttualeCliente}
-        setOffertaAttualeCliente={setOffertaAttualeCliente}
-        scadenzaOffertaCliente={scadenzaOffertaCliente}
-        setScadenzaOffertaCliente={setScadenzaOffertaCliente}
-        clienteDettaglioOpen={clienteDettaglioOpen}
-        setClienteDettaglioOpen={setClienteDettaglioOpen}
-        handleOcrApply={handleOcrApply}
-        handleOcrDone={handleOcrDone}
-      />
-
-      {/* Results section */}
-      {showResults && (
-        <div className="mt-8 space-y-6">
-          {presentationMode ? (
-            <PresentazioneView
-              risultatiLuce={risultatiLuce}
-              risultatiGas={risultatiGas}
-              spesaAnnuaLuce={spesaAnnuaLuce}
-              spesaAnnuaGas={spesaAnnuaGas}
-              dati={dati}
-              parametriLuce={parametriLuce}
-              parametriGas={parametriGas}
-              onVediDettagliati={() => setShowDettagliato(true)}
-            />
-          ) : (
-            <AnalisiOfferte
-              risultatiLuce={risultatiLuce}
-              risultatiGas={risultatiGas}
-              spesaAnnuaLuce={spesaAnnuaLuce}
-              spesaAnnuaGas={spesaAnnuaGas}
-              showLuce={showLuce}
-              showGas={showGas}
-              haSpesaLuce={haSpesaLuce}
-              haSpesaGas={haSpesaGas}
-              bestLuce={bestLuce}
-              bestGas={bestGas}
-              totalRisparmio={totalRisparmio}
-              selectedCteId={selectedCteId}
-              setSelectedCteId={setSelectedCteId}
-              savingSimulazione={savingSimulazione}
-              saveOk={saveOk}
-              saveError={saveError}
-              handleSalvaSimulazione={handleSalvaSimulazione}
-              setTrattativaOfferta={setTrattativaOfferta}
-              setShowDettagliato={setShowDettagliato}
-            />
-          )}
-        </div>
-      )}
-
-      {/* Empty state */}
-      {!showResults && (
-        <div className="mt-8 rounded-xl border-2 border-dashed border-border-ui p-14 text-center text-text-muted space-y-3">
-          <div className="flex justify-center gap-3 opacity-20">
-            <Zap className="w-10 h-10" />
-            <Flame className="w-10 h-10" />
-          </div>
-          <p className="text-sm">
-            Inserisci i dati e premi{" "}
-            <strong className="text-text-base">Confronta offerte</strong> per vedere
-            la classifica.
-          </p>
-        </div>
-      )}
+      <Outlet context={ctx} />
     </div>
   );
 }

@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useOutletContext, useNavigate } from "react-router-dom";
 import { useTenantBranding } from "@/hooks/useTenantBranding";
 import { Flame, Lock, Zap } from "lucide-react";
 import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -7,9 +8,9 @@ import { cn } from "@/lib/utils";
 import { eur } from "@/lib/board/formatters";
 import {
   type DatiCliente,
-  type ParametriRegolati,
   type RisultatoOfferta,
 } from "@/lib/board/calcoloOfferte";
+import type { AnalisiCtx } from "./AnalisiCockpit";
 
 // ── Toggle switch ─────────────────────────────────────────────────────────────
 
@@ -260,25 +261,26 @@ function computeTips(
 
 // ── PresentazioneView ─────────────────────────────────────────────────────────
 
-export function PresentazioneView({
-  risultatiLuce,
-  risultatiGas,
-  spesaAnnuaLuce,
-  spesaAnnuaGas,
-  dati,
-  parametriLuce,
-  parametriGas,
-  onVediDettagliati,
-}: {
-  risultatiLuce: RisultatoOfferta[];
-  risultatiGas: RisultatoOfferta[];
-  spesaAnnuaLuce: number;
-  spesaAnnuaGas: number;
-  dati: DatiCliente;
-  parametriLuce: ParametriRegolati | null;
-  parametriGas: ParametriRegolati | null;
-  onVediDettagliati: () => void;
-}) {
+export function PresentazioneView() {
+  const navigate = useNavigate();
+  const {
+    risultatiLuce,
+    risultatiGas,
+    spesaAnnuaLuce,
+    spesaAnnuaGas,
+    dati,
+    parametriLuce,
+    parametriGas,
+    setShowDettagliato,
+  } = useOutletContext<AnalisiCtx>();
+  const onVediDettagliati = () => setShowDettagliato(true);
+
+  useEffect(() => {
+    if (risultatiLuce.length === 0 && risultatiGas.length === 0) {
+      navigate("/board/analisi/dati", { replace: true });
+    }
+  }, [risultatiLuce, risultatiGas, navigate]);
+
   const { branding } = useTenantBranding();
   const [logoFailed, setLogoFailed] = useState(false);
   const [includiIva, setIncludiIva] = useState(true);

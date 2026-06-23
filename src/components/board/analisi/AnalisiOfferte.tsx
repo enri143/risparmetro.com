@@ -5,10 +5,13 @@ import {
   TrendingUp,
   Zap,
 } from "lucide-react";
+import { useEffect } from "react";
+import { useOutletContext, useNavigate } from "react-router-dom";
 import { Proiezione12Mesi } from "./Proiezione12Mesi";
 import { cn } from "@/lib/utils";
 import { eur } from "@/lib/board/formatters";
 import { type RisultatoOfferta } from "@/lib/board/calcoloOfferte";
+import type { AnalisiCtx } from "../AnalisiCockpit";
 
 // ── FornitoreAvatar ────────────────────────────────────────────────────────────
 
@@ -143,49 +146,36 @@ function StandardOfferCard({
 
 // ── AnalisiOfferte ─────────────────────────────────────────────────────────────
 
-interface AnalisiOfferteProps {
-  risultatiLuce: RisultatoOfferta[];
-  risultatiGas: RisultatoOfferta[];
-  spesaAnnuaLuce: number;
-  spesaAnnuaGas: number;
-  showLuce: boolean;
-  showGas: boolean;
-  haSpesaLuce: boolean;
-  haSpesaGas: boolean;
-  bestLuce: RisultatoOfferta | undefined;
-  bestGas: RisultatoOfferta | undefined;
-  totalRisparmio: number;
-  selectedCteId: string | null;
-  setSelectedCteId: (id: string | null) => void;
-  savingSimulazione: boolean;
-  saveOk: boolean;
-  saveError: string | null;
-  handleSalvaSimulazione: () => Promise<void>;
-  setTrattativaOfferta: (o: RisultatoOfferta | null) => void;
-  setShowDettagliato: (v: boolean) => void;
-}
+export function AnalisiOfferte() {
+  const navigate = useNavigate();
+  const {
+    risultatiLuce,
+    risultatiGas,
+    spesaAnnuaLuce,
+    spesaAnnuaGas,
+    showLuce,
+    showGas,
+    haSpesaLuce,
+    haSpesaGas,
+    bestLuce,
+    bestGas,
+    totalRisparmio,
+    selectedCteId,
+    setSelectedCteId,
+    savingSimulazione,
+    saveOk,
+    saveError,
+    handleSalvaSimulazione,
+    setTrattativaOfferta,
+    setShowDettagliato,
+  } = useOutletContext<AnalisiCtx>();
 
-export function AnalisiOfferte({
-  risultatiLuce,
-  risultatiGas,
-  spesaAnnuaLuce,
-  spesaAnnuaGas,
-  showLuce,
-  showGas,
-  haSpesaLuce,
-  haSpesaGas,
-  bestLuce,
-  bestGas,
-  totalRisparmio,
-  selectedCteId,
-  setSelectedCteId,
-  savingSimulazione,
-  saveOk,
-  saveError,
-  handleSalvaSimulazione,
-  setTrattativaOfferta,
-  setShowDettagliato,
-}: AnalisiOfferteProps) {
+  useEffect(() => {
+    if (risultatiLuce.length === 0 && risultatiGas.length === 0) {
+      navigate("/board/analisi/dati", { replace: true });
+    }
+  }, [risultatiLuce, risultatiGas, navigate]);
+
   return (
     <>
       {/* Summary bar */}

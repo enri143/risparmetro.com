@@ -9,6 +9,9 @@ import BoardLogin from './pages/BoardLogin.tsx'
 import AdminConsole from './pages/AdminConsole.tsx'
 import { initSentry } from "./lib/observability/sentry";
 import { AnalisiCockpit } from "./components/board/AnalisiCockpit";
+import { AnalisiSetup } from "./components/board/analisi/AnalisiSetup";
+import { AnalisiOfferte } from "./components/board/analisi/AnalisiOfferte";
+import { PresentazioneView } from "./components/board/PresentazioneView";
 import { ListinoTab } from "./components/board/listino/ListinoTab";
 import { StoricoRoute } from "./components/board/analisi/StoricoRoute";
 import { ImpostazioniTab } from "./components/board/impostazioni/ImpostazioniTab";
@@ -30,7 +33,13 @@ createRoot(document.getElementById('root')!).render(
           <Route path="/board/login" element={<BoardLogin />} />
           <Route path="/board" element={<Board />}>
             <Route index element={<Navigate to="analisi" replace />} />
-            <Route path="analisi" element={<AnalisiCockpit />} />
+            <Route path="analisi" element={<AnalisiCockpit />}>
+              <Route index element={<Navigate to="dati" replace />} />
+              <Route path="dati" element={<AnalisiSetup />} />
+              <Route path="offerte" element={<AnalisiOfferte />} />
+              <Route path="presenta" element={<PresentazioneView />} />
+              <Route path="*" element={<Navigate to="dati" replace />} />
+            </Route>
             <Route path="listino" element={<ListinoTab />} />
             <Route path="storico" element={<StoricoRoute />} />
             <Route path="impostazioni" element={<ImpostazioniTab />} />
