@@ -7,6 +7,18 @@ export interface Extracted {
   canone_rai?: boolean | null
   fornitore_attuale?: string
   nome_offerta?: string | null
+  scadenza_offerta?: string | null
+  anagrafica?: {
+    nome?: string | null
+    cognome?: string | null
+    ragione_sociale?: string | null
+    indirizzo?: string | null
+    cap?: string | null
+    comune?: string | null
+    provincia?: string | null
+    pod?: string | null
+    pdr?: string | null
+  } | null
   luce?: {
     potenza_impegnata_kw?: number
     consumo_annuo_kwh?: number
@@ -23,6 +35,23 @@ export interface Extracted {
   } | null
   confidence?: number
   note?: string
+}
+
+/** Sottoinsieme scrivibile della tabella clienti rilevante per l'upsert OCR. */
+export interface ClienteAnagrafica {
+  nome?: string
+  cognome?: string
+  ragione_sociale?: string
+  indirizzo?: string
+  comune?: string
+  cap?: string
+  provincia?: string
+  pod?: string
+  pdr?: string
+  fornitore_attuale?: string
+  offerta_attuale?: string
+  scadenza_offerta?: string
+  segmento?: 'residenziale' | 'business' | 'entrambi'
 }
 
 /** Merge multiple extracted bills into one. Luce/gas blocks from different bills are combined. */
@@ -69,6 +98,32 @@ export function mergeExtracted(list: Extracted[]): Extracted {
   merged.confidence = minConf
   merged.tipo = hasLuce && hasGas ? 'dual' : hasLuce ? 'luce' : 'gas'
   return merged
+}
+
+/**
+ * Build a ClienteAnagrafica patch from OCR output.
+ * Only keys with truthy values are included — never emits null/"" to avoid wiping existing data.
+ */
+export function buildClientePatch(ex: Extracted): Partial<ClienteAnagrafica> {
+  const patch: Partial<ClienteAnagrafica> = {}
+  const a = ex.anagrafica
+  if (a) {
+    if (a.nome) patch.nome = a.nome
+    if (a.cognome) patch.cognome = a.cognome
+    if (a.ragione_sociale) patch.ragione_sociale = a.ragione_sociale
+    if (a.indirizzo) patch.indirizzo = a.indirizzo
+    if (a.cap) patch.cap = a.cap
+    if (a.comune) patch.comune = a.comune
+    if (a.provincia) patch.provincia = a.provincia
+    if (a.pod) patch.pod = a.pod
+    if (a.pdr) patch.pdr = a.pdr
+  }
+  if (ex.fornitore_attuale) patch.fornitore_attuale = ex.fornitore_attuale
+  if (ex.nome_offerta) patch.offerta_attuale = ex.nome_offerta
+  if (ex.scadenza_offerta) patch.scadenza_offerta = ex.scadenza_offerta
+  if (ex.segmento === 'business') patch.segmento = 'business'
+  else if (ex.segmento === 'family') patch.segmento = 'residenziale'
+  return patch
 }
 
 /** Build a DatiCliente patch from an OCR-extracted bill. `dati` provides fallback values. */

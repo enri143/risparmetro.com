@@ -23,6 +23,19 @@ ESTRAI questi campi nello schema esatto:
   "canone_rai": boolean | null,
   "fornitore_attuale": string,
   "nome_offerta": string | null,
+  "scadenza_offerta": "YYYY-MM-DD" | null,
+
+  "anagrafica": {
+    "nome": string | null,
+    "cognome": string | null,
+    "ragione_sociale": string | null,
+    "indirizzo": string | null,
+    "cap": string | null,
+    "comune": string | null,
+    "provincia": string | null,
+    "pod": string | null,
+    "pdr": string | null
+  },
 
   "luce": {
     "potenza_impegnata_kw": number,
@@ -73,6 +86,18 @@ REGOLE CRITICHE:
 9. CONFIDENCE: < 0.5 se manca consumo annuo o prezzo materia.
 
 10. NOTE: scrivi SEMPRE da dove hai estratto ogni campo principale.
+
+11. ANAGRAFICA — intestatario: persona fisica → nome + cognome (ragione_sociale: null).
+    P.IVA/azienda → ragione_sociale (nome: null, cognome: null). Tutti null se non trovati.
+
+12. INDIRIZZO: usa quello di FORNITURA (punto di consegna), NON l'indirizzo di recapito/spedizione.
+    Se non trovato → null.
+
+13. POD: codice che inizia con "IT" seguito da ~14 caratteri (cerca etichetta "Codice POD").
+    PDR: 14 cifre (cerca etichetta "Codice PDR" o "Punto di Riconsegna"). Entrambi null se assenti.
+
+14. SCADENZA OFFERTA: ricava da "offerta valida fino al" / "scadenza" / fine periodo promozionale.
+    Formato YYYY-MM-DD se trovato, altrimenti null.
 
 Restituisci SOLO JSON valido (no markdown, no backtick, no commenti).`
 

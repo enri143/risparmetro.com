@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildPatch, mergeExtracted, type Extracted } from './ocrBolletta'
+import { buildPatch, mergeExtracted, buildClientePatch, type Extracted } from './ocrBolletta'
 import type { DatiCliente } from './types'
 
 const datiDefault: DatiCliente = {
@@ -112,6 +112,84 @@ describe('mergeExtracted', () => {
     const m = mergeExtracted([alta, bassa])
     expect(m.luce?.consumo_annuo_kwh).toBe(3000)
     expect(m.confidence).toBe(0.7)
+  })
+})
+
+// ── buildClientePatch ─────────────────────────────────────────────────────────
+
+describe('buildClientePatch', () => {
+  it('family completo: tutti i campi anagrafica mappati, segmento=residenziale, no ragione_sociale', () => {
+    const ex: Extracted = {
+      segmento: 'family',
+      fornitore_attuale: 'Enel',
+      nome_offerta: 'Luce Flex',
+      scadenza_offerta: '2026-12-31',
+      anagrafica: {
+        nome: 'Mario',
+        cognome: 'Rossi',
+        ragione_sociale: null,
+        indirizzo: 'Via Roma 1',
+        cap: '20100',
+        comune: 'Milano',
+        provincia: 'MI',
+        pod: 'IT001E12345678',
+        pdr: null,
+      },
+    }
+    const p = buildClientePatch(ex)
+    expect(p.nome).toBe('Mario')
+    expect(p.cognome).toBe('Rossi')
+    expect(p.indirizzo).toBe('Via Roma 1')
+    expect(p.cap).toBe('20100')
+    expect(p.comune).toBe('Milano')
+    expect(p.provincia).toBe('MI')
+    expect(p.pod).toBe('IT001E12345678')
+    expect(p.fornitore_attuale).toBe('Enel')
+    expect(p.offerta_attuale).toBe('Luce Flex')
+    expect(p.scadenza_offerta).toBe('2026-12-31')
+    expect(p.segmento).toBe('residenziale')
+    expect('ragione_sociale' in p).toBe(false)
+    expect('pdr' in p).toBe(false)
+  })
+
+  it('business: ragione_sociale + segmento=business, no nome/cognome', () => {
+    const ex: Extracted = {
+      segmento: 'business',
+      anagrafica: { ragione_sociale: 'Acme Srl', nome: null, cognome: null },
+    }
+    const p = buildClientePatch(ex)
+    expect(p.ragione_sociale).toBe('Acme Srl')
+    expect(p.segmento).toBe('business')
+    expect('nome' in p).toBe(false)
+    expect('cognome' in p).toBe(false)
+  })
+
+  it('parziale (solo pod): ritorna esattamente { pod } — anti-wipe', () => {
+    const ex: Extracted = { anagrafica: { pod: 'IT001E12345678' } }
+    const p = buildClientePatch(ex)
+    expect(p.pod).toBe('IT001E12345678')
+    expect(Object.keys(p)).toEqual(['pod'])
+  })
+})
+
+// ── enum-guard buildClientePatch ──────────────────────────────────────────────
+
+describe('buildClientePatch — enum-guard segmento', () => {
+  it('family → residenziale', () => {
+    expect(buildClientePatch({ segmento: 'family' }).segmento).toBe('residenziale')
+  })
+
+  it('business → business', () => {
+    expect(buildClientePatch({ segmento: 'business' }).segmento).toBe('business')
+  })
+
+  it('segmento assente → omesso (mai undefined nel DB)', () => {
+    expect('segmento' in buildClientePatch({})).toBe(false)
+  })
+
+  it('valore fuori enum (cast) → omesso, mai scritto nel patch', () => {
+    const p = buildClientePatch({ segmento: 'altro' as unknown as 'family' })
+    expect('segmento' in p).toBe(false)
   })
 })
 
