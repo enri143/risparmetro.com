@@ -9,9 +9,10 @@
 ## Stato corrente (one-glance)
 
 - **Motore**: A (`src/lib/board/calcoloOfferte.ts`, "parte contendibile") = **unico e frozen**. Motore B eliminato.
-- **Test suite**: `52 passed · 3 skipped · 0 failed` (`npm run test`).
+- **Motore B eliminato — verificato su git** (`noMotoreB.guard.test.ts` blinda l'invariante a CI).
+- **Test suite**: `53 passed · 3 skipped · 0 failed` (`npm run test`).
 - **Build**: `npm run build` OK (solo warning pre-esistenti: chunk size, eval in vm-browserify).
-- **Golden**: `calcoloOfferte.golden.test.ts` = oracolo vero, 6 casi, numeri ricalcolati a mano dal motore.
+- **Golden**: `calcoloOfferte.golden.test.ts` = oracolo vero, 6 casi, numeri ricalcolati a mano dal motore. Tracciato in git da `13d0c0d`.
 - ⚠️ **origin/main indietro**: ricordarsi `git push` (commit locali avanti).
 
 ---
@@ -68,7 +69,7 @@ Legenda: ✅ fatto · ⏳ da fare · 🟡 parziale · ⏸️ in attesa esterna �
 
 | # | Cosa | Commit | Esito |
 |---|------|--------|-------|
-| 1 | A2 — `calcoloOfferte.golden.test.ts` riscritto su Motore A, 6 casi (fisso/indicizzato luce+gas, dual, ordinamento, gate-guard) | (golden rewrite) | verde |
+| 1 | A2 — `calcoloOfferte.golden.test.ts` riscritto su Motore A, 6 casi (fisso/indicizzato luce+gas, dual, ordinamento, gate-guard) | `13d0c0d` | verde |
 | 2 | Eliminata isola Motore B: `calcoli.ts` + `ClassificaOfferte.tsx` + `Proiezione12Mesi.tsx` + `ConfrontoModal.tsx` | `8c373b5` | −906 righe, build OK, 28/3/0 |
 | 3 | B6 — toggle `showProvvigioni` (AnalisiCockpit + ConfrontoDettagliatoView + leak-test esteso) | `910513e` | build OK, 29/3/0 |
 | 4 | B7 — Proiezione 12 mesi da zero su Motore A (`proiezione.ts` + `Proiezione12Mesi.tsx` Recharts + mount in AnalisiCockpit) | `10f9382` | build OK, 33/3/0 |
@@ -98,6 +99,8 @@ Legenda: ✅ fatto · ⏳ da fare · 🟡 parziale · ⏸️ in attesa esterna �
 | 28 | C12 S5 — crea tenant: Dialog nome/slug/piano/colore, errore slug duplicato | `89370a1` | build OK, 52/3/0 |
 | 29 | C12 S6 — sospendi/riattiva tenant: toggle + confirm + reload | `1da420e` | build OK, 52/3/0 |
 | 30 | C14-B — edge function provision-tenant-user + UI AggiuntaAgenteDialog | `aa4efc2` | build OK, 52/3/0 · deploy OK |
+| 31 | Baseline oracolo: traccia golden (13d0c0d), ignora zip/.codex, untrack tsbuildinfo, fix pre-commit hook | `13d0c0d` | build OK, 52/3/0 |
+| 32 | Re-land D17: rimuovi `SimulazioneBolletta` orfana da types.ts + guard test `noMotoreB.guard.test.ts` | `c40fefe` | build OK, 53/3/0 |
 
 ---
 
