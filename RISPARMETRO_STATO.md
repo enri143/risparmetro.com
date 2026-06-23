@@ -46,7 +46,7 @@ Legenda: ✅ fatto · ⏳ da fare · 🟡 parziale · ⏸️ in attesa esterna �
 ### Blocco D — Hardening
 - **D15** ✅ (parziale) R1 ✅ narrow SELECT cte, R2 ✅ hook orfano rimosso. R3 ⏸️ `impostazioni` table: decisione globale-vs-tenant parcheggiata → blocco C (onboarding tenant). `rls.cross-tenant.test.ts` ha 3 `it.skip` → step futuro.
 - **D16** ⏳ Osservabilità (Sentry)
-- **D17** ✅ Dead-code: isola Motore B rimossa · `AnalisiTab.tsx` + `FiltriRapidiChips.tsx` orfani rimossi · warning GoTrueClient eliminato (due `createClient` → un'istanza canonica con fallback chiave)
+- **D17** ✅ Dead-code: isola Motore B rimossa · `AnalisiTab.tsx` + `FiltriRapidiChips.tsx` orfani rimossi · warning GoTrueClient eliminato · hook orfano `useSgProvvigioni` rimosso (D15-R2) · 10 file orfani residui rimossi (knip) · 5 dipendenze inutilizzate rimosse (knip). Export inutilizzati in `calcoloOfferte.ts` NON rimossi (motore frozen).
 - **D18** ⏳ QA tablet iPad reale
 
 ### Blocco GAS / E
@@ -71,6 +71,8 @@ Legenda: ✅ fatto · ⏳ da fare · 🟡 parziale · ⏸️ in attesa esterna �
 | 10 | D15 step 1 — audit RLS read-only: colonne CTE sensibili, 7 rischi catalogati, tabelle fantasma, bundle scan | `f78783a` | docs-only |
 | 11 | D15 R1: narrow SELECT cte + fetch provvigioni gated su !clientMode (belt-and-suspenders) | `b4781be` | build OK, 33/3/0 |
 | 12 | D15 R2: rimosso hook orfano useSgProvvigioni (zero consumer, tabella fantasma sg_provvigioni) | `29df98f` | build OK, 33/3/0 |
+| 13 | D17 knip: rimuovi 10 file orfani residui (BeforeAfterBar, ClienteForm, DraftBanner, HeroRisparmio, SimulazioneBolletta, useDraftAutosave, iva, sgCodice, share, App.css) | `46cedf8` | build OK, 33/3/0 |
+| 14 | D17 knip: rimuovi 5 dipendenze inutilizzate (framer-motion, html2canvas, jspdf, @base-ui/react, @fontsource-variable/geist); pako promosso a diretta | `6860fc3` | build OK, 33/3/0 |
 
 ---
 
