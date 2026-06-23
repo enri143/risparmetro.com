@@ -2,14 +2,14 @@
 
 > Fonte di verità dello stato del **redesign UI/UX**. Si aggiorna a fine di OGNI work-unit (commit isolato).
 > Build funzionale e logica: vedi `RISPARMETRO_STATO.md`. Invarianti complete: `RISPARMETRO_BUILD_PLAN.md` + `CLAUDE.md`.
-> **Ultimo aggiornamento: 23 giugno 2026** — tracker creato, baseline `ebe0161`, 0/13 work-unit completati.
+> **Ultimo aggiornamento: 23 giugno 2026** — WU1 completato (split cockpit), 1/13 work-unit completati.
 
 ---
 
 ## Stato corrente (one-glance)
 
-- **Work-unit corrente**: WU1 (split cockpit) — ⏳ da iniziare.
-- **Completati**: 0 / 13.
+- **Work-unit corrente**: WU2 (route annidate + stepper).
+- **Completati**: 1 / 13.
 - **Test suite baseline**: `79 passed · 3 skipped · 0 failed`. Build verde. Da mantenere a ogni WU.
 - **App LIVE**: `https://risparmetro-com.vercel.app` (deploy on push, branch `main`).
 - **Regola**: ogni WU finisce con `npm run build && npm run test` verdi + commit isolato + aggiornamento di QUESTO file. MAI `git push` (lo fa Enrico).
@@ -54,7 +54,7 @@ Legenda: ✅ fatto · 🟡 parziale · ⏳ da fare · 🔴 rischio alto · ⭐ e
 ### Fase 1 — Navigazione (keystone, de-rischia tutto)
 | WU | Idee | Goal | Stato | Commit |
 |----|------|------|-------|--------|
-| WU1 | 3 | Spezzare `AnalisiCockpit` in componenti (Setup / Offerte / Results) senza cambio comportamento | ⏳ | — |
+| WU1 | 3 | Spezzare `AnalisiCockpit` in componenti (Setup / Offerte / Results) senza cambio comportamento | ✅ | ce80abc |
 | WU2 | 2 + 1 | Route annidate `/board/analisi/*` (dati→offerte→presenta→chiudi) + stepper visivo sincronizzato | ⏳ 🔴 | — |
 
 ### Fase 2 — Design base (eredita tutto il resto)
@@ -119,6 +119,8 @@ Legenda: ✅ fatto · 🟡 parziale · ⏳ da fare · 🔴 rischio alto · ⭐ e
 - (seed) Navigazione: si passa da boolean su pagina unica a route annidate sotto `/board/analisi`. La shell a tab di `Board.tsx` resta; cambia solo il contenuto del tab "analisi".
 - (seed) Transizioni senza framer-motion (rimosso da knip): View Transitions API nativa o CSS.
 - (seed) Modalità Cliente è il differenziatore vendibile: massima cura, brandizzata, zero leak provvigioni.
+- (WU1) Split move-only: `AnalisiCockpit` resta orchestratore (tutto stato/effetti/memo/handler), `AnalisiSetup` riceve il form+dropzone, `AnalisiOfferte` riceve il ramo agente dei risultati. `PresentazioneView`, overlay (`MaxiTrattativaPanel`, `TrattativaView`) e `ConfrontoDettagliatoView` restano montati dal cockpit. `cockpitShared.tsx` espone i tipi condivisi (`ZonaRow`, `ClienteSeg`, `ResidenzaSeg`). `data-testid` stabili aggiunti: `analisi-setup`, `analisi-offerte`.
+- (WU1) FALSO POSITIVO §0-bis: `calcoli.ts` + `ConfrontoModal.tsx` + `ClassificaOfferte.tsx` sono dead-code residuo (0 importer statici vivi); il loro rilevamento in ZIP è atteso. Pulizia da fare nel workstream FUNZIONALE, non qui.
 
 ---
 
@@ -126,4 +128,5 @@ Legenda: ✅ fatto · 🟡 parziale · ⏳ da fare · 🔴 rischio alto · ⭐ e
 
 | Data | WU toccati | Commit | Esito |
 |------|------------|--------|-------|
-| 23 giu 2026 | — (tracker creato) | (questo commit) | baseline |
+| 23 giu 2026 | — (tracker creato) | 4a7075d | baseline |
+| 23 giu 2026 | WU1 | ce80abc | split AnalisiCockpit → AnalisiSetup + AnalisiOfferte; 79/3/0 ✅ |
