@@ -48,7 +48,8 @@ Legenda: ✅ fatto · ⏳ da fare · 🟡 parziale · ⏸️ in attesa esterna �
 - ✅ **BUG fornitori risolto**: `matchFornitore` (fuzzy includes) + auto-create via upsert on conflict slug in `UploadPdfFlow`. Seed ancora da applicare se DB vuoto (`npx supabase db push`).
 
 ### Blocco C — Multi-tenant SaaS
-- **C12** ⏳ Console super-admin · **C13** ⏳ 💰 Onboarding + white-label branding · **C14** ⏳ Inviti team + auth completo
+- **C12** 🟡 Console super-admin — slice 1: rotta `/admin` blindata a platform_admin, lista tenant read-only (nome, slug, piano, attivo, data). Restano: create tenant, sospendi, inviti.
+- **C13** ⏳ 💰 Onboarding + white-label branding · **C14** ⏳ Inviti team + auth completo
 
 ### Blocco D — Hardening
 - **D15** ✅ (parziale) R1 ✅ narrow SELECT cte, R2 ✅ hook orfano rimosso. R3 ⏸️ `impostazioni` table: decisione globale-vs-tenant parcheggiata → blocco C (onboarding tenant). `rls.cross-tenant.test.ts` ha 3 `it.skip` → step futuro.
@@ -89,6 +90,9 @@ Legenda: ✅ fatto · ⏳ da fare · 🟡 parziale · ⏸️ in attesa esterna �
 | 21 | V5+V7 — FrasiClosePanel (clipboard+feedback) + CompliancePanel (checklist+banner) | `19e6c72` | build OK, 42/3/0 |
 | 22 | V S5 — CopilotTrattativa accordion + mount in TrattativaView | `b54baa1` | build OK, 42/3/0 |
 | 23 | fix: fornitore_id via fuzzy match + auto-create (matchFornitore.ts + 5 test + UploadPdfFlow) | `c7bca4a` | build OK, 47/3/0 |
+| 24 | C12 S1 — guard RequirePlatformAdmin (loading/accesso negato/children) | `4df9ae7` | build OK, 47/3/0 |
+| 25 | C12 S2 — pagina AdminConsole: lista tenant read-only, skeleton, empty state | `6fcfaa5` | build OK, 47/3/0 |
+| 26 | C12 S3 — rotta /admin + link "Admin" condizionale in Board header | `29c22fe` | build OK, 47/3/0 |
 
 ---
 
