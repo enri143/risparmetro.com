@@ -121,20 +121,3 @@ export interface RisultatoOfferta {
   prezzoEffettivo: number;
   prezziPerFascia?: { f1: number; f2: number; f3: number };
 }
-
-export interface SimulazioneBolletta {
-  spesaMateria: number;
-  dettaglioMateria: {
-    quotaFissaFornitore: number;
-    corrispettivo: number;
-    corrispettiviFasce?: { f1: number; f2: number; f3: number; prezzoF1: number; prezzoF2: number; prezzoF3: number; kwhF1: number; kwhF2: number; kwhF3: number };
-  };
-  spesaTrasporto: number;
-  dettaglioTrasporto: { quotaFissa: number; quotaPotenza?: number; quotaVariabile: number };
-  spesaOneri: number;
-  spesaImposte: number;
-  dettaglioImposte: { accise: number; iva: number };
-  canoneRaiMediaMese?: number;
-  totaleMese: number;
-  totaleAnno: number;
-}
