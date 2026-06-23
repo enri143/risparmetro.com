@@ -5,7 +5,7 @@ import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import type { RisultatoOfferta } from "@/lib/board/calcoloOfferte";
 import { eur } from "@/lib/board/formatters";
 import { cn } from "@/lib/utils";
-import { supabase } from "@/integrations/supabase/client";
+import { useTenantBranding } from "@/hooks/useTenantBranding";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -14,12 +14,6 @@ interface Props {
   gas: RisultatoOfferta[];
   onClose: () => void;
   revealMode?: boolean;
-}
-
-interface Branding {
-  accent_color: string | null;
-  logo_url: string | null;
-  brand_name: string | null;
 }
 
 const SAVINGS_COLOR = "#16a34a";
@@ -62,25 +56,9 @@ export function MaxiTrattativaPanel({ luce, gas, onClose, revealMode = false }: 
     revealMode ? "agent" : "maxi",
   );
   const [displayCount, setDisplayCount] = useState(eur(0));
-  const [branding, setBranding] = useState<Branding>({
-    accent_color: null,
-    logo_url: null,
-    brand_name: null,
-  });
+  const { branding } = useTenantBranding();
   const wakeLockRef = useRef<WakeLockSentinel | null>(null);
   const count = useMotionValue(0);
-
-  // Fetch branding once (reveal only)
-  useEffect(() => {
-    if (!revealMode) return;
-    supabase
-      .from("tenant_branding")
-      .select("accent_color, logo_url, brand_name")
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data) setBranding(data as Branding);
-      });
-  }, [revealMode]);
 
   // Wake lock when client-reveal is active
   useEffect(() => {
@@ -101,7 +79,7 @@ export function MaxiTrattativaPanel({ luce, gas, onClose, revealMode = false }: 
   useEffect(() => {
     if (step !== "reveal" || !top[0]) return;
     const target = top[0].risparmio_annuo;
-    const accentColor = branding.accent_color ?? SAVINGS_COLOR;
+    const accentColor = branding?.accent_color ?? SAVINGS_COLOR;
     const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     if (prefersReduced) {
@@ -133,7 +111,7 @@ export function MaxiTrattativaPanel({ luce, gas, onClose, revealMode = false }: 
       controls.stop();
       unsub();
     };
-  }, [step, top, branding.accent_color, count]);
+  }, [step, top, branding?.accent_color, count]);
 
   // ── Existing carousel effects ───────────────────────────────────────────────
   useEffect(() => { setIdx(0); }, [top.length]);
@@ -162,7 +140,7 @@ export function MaxiTrattativaPanel({ luce, gas, onClose, revealMode = false }: 
     onClose();
   };
 
-  const accentColor = branding.accent_color ?? SAVINGS_COLOR;
+  const accentColor = branding?.accent_color ?? SAVINGS_COLOR;
 
   // ── Phase 1: Agente ─────────────────────────────────────────────────────────
   if (step === "agent") {
@@ -223,10 +201,10 @@ export function MaxiTrattativaPanel({ luce, gas, onClose, revealMode = false }: 
       <div className="fixed inset-0 z-[100] bg-white flex flex-col items-center justify-center overflow-hidden select-none">
         {/* Logo tenant */}
         <div className="absolute top-8 inset-x-0 flex justify-center px-6">
-          {branding.logo_url ? (
+          {branding?.logo_url ? (
             <img
               src={branding.logo_url}
-              alt={branding.brand_name ?? ""}
+              alt={branding?.brand_name ?? ""}
               className="max-h-16 max-w-[180px] object-contain"
               draggable={false}
             />

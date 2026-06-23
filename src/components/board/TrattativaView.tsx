@@ -1,17 +1,11 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { FileText, Loader2, X } from "lucide-react";
 import type { RisultatoOfferta } from "@/lib/board/calcoloOfferte";
 import { eur } from "@/lib/board/formatters";
-import { supabase } from "@/integrations/supabase/client";
+import { useTenantBranding } from "@/hooks/useTenantBranding";
 import { generateReport } from "@/lib/pdf/generateReport";
 import { cn } from "@/lib/utils";
 import { CopilotTrattativa } from "@/components/board/analisi/copilot/CopilotTrattativa";
-
-interface TenantBranding {
-  brand_name: string | null;
-  accent_color: string | null;
-  logo_url: string | null;
-}
 
 interface Props {
   offerta: RisultatoOfferta;
@@ -30,24 +24,10 @@ export function TrattativaView({
   spesaAnnuaGas,
   onClose,
 }: Props) {
-  const [branding, setBranding] = useState<TenantBranding>({
-    brand_name: null,
-    accent_color: "#1D9E75",
-    logo_url: null,
-  });
+  const { branding } = useTenantBranding();
   const [generatingPdf, setGeneratingPdf] = useState(false);
 
-  useEffect(() => {
-    supabase
-      .from("tenant_branding")
-      .select("brand_name, accent_color, logo_url")
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data) setBranding(data as TenantBranding);
-      });
-  }, []);
-
-  const accentColor = branding.accent_color ?? "#1D9E75";
+  const accentColor = branding?.accent_color ?? "#1D9E75";
   const VERDE = "#1D9E75";
 
   // Derived entirely from RisultatoOfferta — no recalculation
@@ -85,10 +65,10 @@ export function TrattativaView({
         className="shrink-0 flex items-center justify-between px-6 py-3.5 border-b border-border-ui"
       >
         <div className="flex items-center gap-3">
-          {branding.logo_url ? (
+          {branding?.logo_url ? (
             <img
               src={branding.logo_url}
-              alt={branding.brand_name ?? "Logo"}
+              alt={branding?.brand_name ?? "Logo"}
               className="h-8 max-w-[140px] object-contain"
             />
           ) : (
@@ -96,12 +76,12 @@ export function TrattativaView({
               className="w-8 h-8 rounded-md flex items-center justify-center text-white text-sm font-bold shrink-0"
               style={{ backgroundColor: accentColor }}
             >
-              {(branding.brand_name ?? "A").charAt(0).toUpperCase()}
+              {(branding?.brand_name ?? "A").charAt(0).toUpperCase()}
             </div>
           )}
-          {branding.brand_name && (
+          {branding?.brand_name && (
             <span className="text-sm font-semibold text-text-base hidden sm:block">
-              {branding.brand_name}
+              {branding?.brand_name}
             </span>
           )}
         </div>
