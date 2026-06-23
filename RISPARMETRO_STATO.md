@@ -10,7 +10,7 @@
 
 - **Motore**: A (`src/lib/board/calcoloOfferte.ts`, "parte contendibile") = **unico e frozen**. Motore B eliminato.
 - **Motore B eliminato — verificato su git** (`noMotoreB.guard.test.ts` blinda l'invariante a CI).
-- **Test suite**: `53 passed · 3 skipped · 0 failed` (`npm run test`).
+- **Test suite**: `73 passed · 3 skipped · 0 failed` (`npm run test`).
 - **Build**: `npm run build` OK (solo warning pre-esistenti: chunk size, eval in vm-browserify).
 - **Golden**: `calcoloOfferte.golden.test.ts` = oracolo vero, 6 casi, numeri ricalcolati a mano dal motore. Tracciato in git da `13d0c0d`.
 - ⚠️ **origin/main indietro**: ricordarsi `git push` (commit locali avanti).
@@ -50,11 +50,11 @@ Legenda: ✅ fatto · ⏳ da fare · 🟡 parziale · ⏸️ in attesa esterna �
 
 ### Blocco C — Multi-tenant SaaS
 - **C12** 🟡 Console super-admin — slice 1+2 fatti: `/admin` blindata, lista tenant, crea tenant (nome/slug/piano/colore, errore slug duplicato), sospendi/riattiva con conferma. Provisioning agente via UI (C14-B). Restano: mandati fornitori per-tenant.
-- **C13** ⏳ 💰 Onboarding + white-label branding
+- **C13** ✅ 💰 Onboarding + white-label branding — completo: hook centralizzato + BoardHeader + PresentazioneView + Trattativa/Reveal, query branding centralizzata (tranne generateReport, documentato)
 - **C14** 🟡 Provisioning agente: edge function `provision-tenant-user` (service_role, guard platform_admin, rollback su member-insert fail) + UI "Aggiungi agente" nella console (email/password/ruolo, genera password, riepilogo+copia). Resta: inviti self-service via email (fase futura).
 
 ### Blocco D — Hardening
-- **D15** ✅ (parziale) R1 ✅ narrow SELECT cte, R2 ✅ hook orfano rimosso. R3 ⏸️ `impostazioni` table: decisione globale-vs-tenant parcheggiata → blocco C (onboarding tenant). `rls.cross-tenant.test.ts` ha 3 `it.skip` → step futuro.
+- **D15** ✅ R1 ✅ narrow SELECT cte, R2 ✅ hook orfano rimosso. R3 ✅ branding tenant-scoped via `tenant_branding` + RLS (`useTenantBranding`). `rls.cross-tenant.test.ts` ha 3 `it.skip` → hardening futuro.
 - **D16** ⏳ Osservabilità (Sentry)
 - **D17** ✅ Dead-code: isola Motore B rimossa · `AnalisiTab.tsx` + `FiltriRapidiChips.tsx` orfani rimossi · warning GoTrueClient eliminato · hook orfano `useSgProvvigioni` rimosso (D15-R2) · 10 file orfani residui rimossi (knip) · 5 dipendenze inutilizzate rimosse (knip). Export inutilizzati in `calcoloOfferte.ts` NON rimossi (motore frozen).
 - **D18** ⏳ QA tablet iPad reale
@@ -106,6 +106,10 @@ Legenda: ✅ fatto · ⏳ da fare · 🟡 parziale · ⏸️ in attesa esterna �
 | 35 | B10: salva anagrafica OCR su clienti + review dialog + prefill nome + source reale | `4a0458c` | build OK, 68/3/0 |
 | 36 | B10: dettaglio cliente/fornitura espandibile in Storico + fix doppio € (3 punti) | `9738f66` | build OK, 68/3/0 |
 | 37 | B10: anagrafica editabile nel cockpit — autofill OCR + Collapsible + salvataggio anti-wipe dai campi form | `9bfbe48` | build OK, 68/3/0 |
+| 38 | C13 S1: hook useTenantBranding + TenantBrandingProvider in Board + CSS var `--color-brand` override | `ccc197c` | build OK, 73/3/0 |
+| 39 | C13 S2: BoardHeader (logo + brand_name + bg-brand accent) estratto da Board, zero import orfani | `f1f475d` | build OK, 73/3/0 |
+| 40 | C13 S3: testata brandizzata (logo + brand_name + divisore accent + telefono) in PresentazioneView | `a2fadfc` | build OK, 73/3/0 |
+| 41 | C13 S4: TrattativaView + MaxiTrattativaPanel migrati a useTenantBranding, rimosse 2 query duplicate | `44b45dc` | build OK, 73/3/0 |
 
 ---
 
@@ -123,3 +127,5 @@ Legenda: ✅ fatto · ⏳ da fare · 🟡 parziale · ⏸️ in attesa esterna �
 - Leak-guard `clientmode-leak.test.tsx`: usa `queryByText("Provvigione")` **esatto** per non collidere col bottone toggle "Provvigioni: ON/OFF". Hardening opzionale: `data-testid` dedicato sulla sezione "Condizioni Agente".
 - Provvigioni: PDF (`src/lib/pdf/`) e `MaxiTrattativaPanel` verificati **puliti** (nessun riferimento). Unica superficie viva che le mostra = `ConfrontoDettagliatoView`.
 - `parametri_regolati` gas resta separato finché non si fa il Blocco GAS (scaglioni).
+- Header usa `bg-brand` (accent tenant via override S1): un `accent_color` molto chiaro rende il testo header bianco poco leggibile — validazione contrasto deferita.
+- `generateReport.ts` mantiene il proprio fetch `tenant_branding` di proposito: non è un componente (no hook) e ha 2 caller (TrattativaView, ConfrontoDettagliatoView). Fetch imperativo = sempre fresco. Non migrare all'hook.
