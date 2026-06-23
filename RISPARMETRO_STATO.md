@@ -33,7 +33,7 @@ Legenda: ✅ fatto · ⏳ da fare · 🟡 parziale · ⏸️ in attesa esterna �
 - **B7** ✅ Proiezione 12 mesi — **rifatta da zero su Modello A**. `proiezione.ts` puro TS (no React, no Supabase), `Proiezione12Mesi.tsx` (Recharts AreaChart, risparmio cumulato offerta selezionata), montata in AnalisiCockpit.
 - **B8** ✅ StoricoTab v2 su `simulazioni` — query diretta (RLS per-tenant, nessuna edge function), snapshot immutabile read-only (splitSnapshot + stripProvvigioni), tab Storico montata in Board. Cross-tenant garantito dalla RLS verificata in D15, non testabile con vitest senza DB live.
 - **B9** ✅ 💰 PresentazioneView v2 / Salesboard — completa: Proiezione12Mesi (AreaChart) + BeforeAfterCard (BarChart Recharts + durata bloccata label con Lock icon). Layout grid 2-col iPad landscape. Zero provvigioni.
-- **B10** 🟡 💰 OCR bolletta → autofill. Edge function `extract-bolletta-board` completa (estesa con blocco anagrafica + scadenza_offerta). `UploadBollettaButton` montato in AnalisiCockpit. Mapping layer in `ocrBolletta.ts`: `buildPatch` (form energia) + `buildClientePatch` (anagrafica, anti-wipe) — 15 test totali. Migration `20260622200000` aggiunge pod/pdr/ragione_sociale/fornitore_attuale/offerta_attuale/scadenza_offerta a `clienti`. **PENDING**: `npx supabase db push`, redeploy edge function (segnalare), E2E su device reale, wiring upsert `buildClientePatch` nel componente, estensione form Cliente. Nota: fasce estratte non applicate al cockpit (monorario — feature a sé).
+- **B10** 🟡 💰 OCR bolletta → autofill. Edge function `extract-bolletta-board` completa (con blocco anagrafica + scadenza_offerta). Migration `20260622200000` applicata (pod/pdr/ragione_sociale/fornitore_attuale/offerta_attuale/scadenza_offerta su `clienti`). `buildClientePatch` salva anagrafica OCR su clienti (INSERT + UPDATE anti-wipe). Review anagrafica nel dialog bolletta prima di "Applica". Nome cliente precompilato da OCR se vuoto. Source provider reale in bolletta_ocr. **PENDING**: redeploy edge function, E2E su device reale, form Cliente editabile esteso (pod/pdr/ragione_sociale). Nota: fasce estratte non applicate al cockpit (monorario — feature a sé).
 - **B11** ✅ 💰 PDF brandizzato per tenant — logo + accent bar + dati + risparmio. Parità presentazione: durata bloccata nella card offerta (verde, solo se risparmio > 0). Footer: "Preventivo valido fino al gg/mm/aaaa" (+30 gg runtime).
 
 ### Blocco V — Co-pilot trattativa
@@ -103,6 +103,7 @@ Legenda: ✅ fatto · ⏳ da fare · 🟡 parziale · ⏸️ in attesa esterna �
 | 32 | Re-land D17: rimuovi `SimulazioneBolletta` orfana da types.ts + guard test `noMotoreB.guard.test.ts` | `c40fefe` | build OK, 53/3/0 |
 | 33 | B10: estrai mapping OCR in `ocrBolletta.ts` + 8 test (buildPatch/mergeExtracted/robustezza) | `cb9ffb2` | build OK, 61/3/0 |
 | 34 | B10 data layer: colonne clienti OCR + estendi Extracted/prompt + buildClientePatch + 7 test | `55b2b58` | build OK, 68/3/0 |
+| 35 | B10: salva anagrafica OCR su clienti + review dialog + prefill nome + source reale | `4a0458c` | build OK, 68/3/0 |
 
 ---
 
