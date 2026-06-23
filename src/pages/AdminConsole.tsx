@@ -20,12 +20,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ShieldCheck, Plus, Loader2 } from "lucide-react";
+import { ShieldCheck, Plus, Loader2, UserPlus, Copy, Check } from "lucide-react";
 import { slugify } from "@/lib/admin/slug";
 import { toast } from "sonner";
 
 const PIANI = ["free", "starter", "pro", "business"] as const;
 type Piano = (typeof PIANI)[number];
+
+const RUOLI = ["owner", "admin", "agent"] as const;
+type Ruolo = (typeof RUOLI)[number];
 
 interface TenantRow {
   id: string;
@@ -35,6 +38,13 @@ interface TenantRow {
   attivo: boolean | null;
   created_at: string;
   colore_primario: string | null;
+}
+
+function generatePassword(): string {
+  const chars = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#%&";
+  const arr = new Uint8Array(14);
+  crypto.getRandomValues(arr);
+  return Array.from(arr, (b) => chars[b % chars.length]).join("");
 }
 
 // ── NuovoTenantDialog ─────────────────────────────────────────────────────────
@@ -180,15 +190,181 @@ function NuovoTenantDialog({ open, onClose, onCreated }: NuovoTenantDialogProps)
   );
 }
 
+// ── AggiuntaAgenteDialog ──────────────────────────────────────────────────────
+
+interface AggiuntaAgenteDialogProps {
+  open: boolean;
+  onClose: () => void;
+  tenant: TenantRow | null;
+}
+
+function AggiuntaAgenteDialog({ open, onClose, tenant }: AggiuntaAgenteDialogProps) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [role, setRole] = useState<Ruolo>("owner");
+  const [saving, setSaving] = useState(false);
+  const [errore, setErrore] = useState<string | null>(null);
+  const [success, setSuccess] = useState<{ email: string; password: string } | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const reset = () => {
+    setEmail(""); setPassword(""); setRole("owner");
+    setSaving(false); setErrore(null); setSuccess(null); setCopied(false);
+  };
+
+  const handleClose = () => { reset(); onClose(); };
+
+  const submit = async () => {
+    if (!email.trim() || !password || !tenant) return;
+    setSaving(true);
+    setErrore(null);
+    const { data, error } = await supabase.functions.invoke("provision-tenant-user", {
+      body: { tenant_id: tenant.id, email: email.trim(), password, role },
+    });
+    setSaving(false);
+    if (error) {
+      setErrore(error.message ?? "Errore di rete");
+      return;
+    }
+    if (data?.error) {
+      setErrore(data.error);
+      return;
+    }
+    setSuccess({ email: email.trim(), password });
+  };
+
+  const copia = async () => {
+    const testo = `Email: ${success?.email}\nPassword: ${success?.password}`;
+    try {
+      await navigator.clipboard.writeText(testo);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch {
+      // silent
+    }
+  };
+
+  if (!tenant) return null;
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Aggiungi agente — {tenant.nome ?? tenant.slug}</DialogTitle>
+        </DialogHeader>
+
+        {success ? (
+          <div className="space-y-4 py-2">
+            <div className="rounded-lg bg-muted/60 border border-border p-4 space-y-3">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                Credenziali create
+              </p>
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">Email</p>
+                <p className="text-sm font-medium font-mono">{success.email}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">Password</p>
+                <p className="text-sm font-medium font-mono">{success.password}</p>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Condividi queste credenziali col broker. La password non verrà mostrata di nuovo.
+            </p>
+            <Button onClick={copia} variant="outline" className="w-full gap-2">
+              {copied ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+              {copied ? "Copiato" : "Copia email + password"}
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="ag-email">Email *</Label>
+              <Input
+                id="ag-email"
+                type="email"
+                placeholder="broker@esempio.it"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoFocus
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="ag-password">Password *</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="ag-password"
+                  type="text"
+                  placeholder="min 8 caratteri"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="font-mono text-sm flex-1"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPassword(generatePassword())}
+                  className="shrink-0 text-xs px-3"
+                >
+                  Genera
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Ruolo</Label>
+              <Select value={role} onValueChange={(v) => setRole(v as Ruolo)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {RUOLI.map((r) => (
+                    <SelectItem key={r} value={r} className="capitalize">
+                      {r}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {errore && (
+              <p className="text-sm text-destructive">{errore}</p>
+            )}
+          </div>
+        )}
+
+        <DialogFooter>
+          <Button variant="outline" onClick={handleClose}>
+            {success ? "Chiudi" : "Annulla"}
+          </Button>
+          {!success && (
+            <Button
+              onClick={submit}
+              disabled={saving || !email.trim() || !password}
+              className="gap-2"
+            >
+              {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+              Crea agente
+            </Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ── TenantList ────────────────────────────────────────────────────────────────
 
 interface TenantListProps {
   tenants: TenantRow[] | null;
   error: string | null;
   onRefresh: () => void;
+  onProvision: (tenant: TenantRow) => void;
 }
 
-function TenantList({ tenants, error, onRefresh }: TenantListProps) {
+function TenantList({ tenants, error, onRefresh, onProvision }: TenantListProps) {
   const [toggling, setToggling] = useState<string | null>(null);
 
   const toggleAttivo = async (t: TenantRow) => {
@@ -263,6 +439,16 @@ function TenantList({ tenants, error, onRefresh }: TenantListProps) {
             <Button
               variant="ghost"
               size="sm"
+              onClick={() => onProvision(t)}
+              className="h-7 px-2 text-[11px] text-muted-foreground hover:text-foreground gap-1"
+              title="Aggiungi agente a questo tenant"
+            >
+              <UserPlus className="w-3 h-3" />
+              <span className="hidden sm:inline">Agente</span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
               disabled={toggling === t.id}
               onClick={() => toggleAttivo(t)}
               className="h-7 px-2 text-[11px] text-muted-foreground hover:text-foreground"
@@ -284,6 +470,7 @@ export default function AdminConsole() {
   const [tenants, setTenants] = useState<TenantRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [nuovoOpen, setNuovoOpen] = useState(false);
+  const [agentTarget, setAgentTarget] = useState<TenantRow | null>(null);
 
   const loadTenants = () => {
     setTenants(null);
@@ -334,7 +521,12 @@ export default function AdminConsole() {
                 Nuovo tenant
               </Button>
             </div>
-            <TenantList tenants={tenants} error={error} onRefresh={loadTenants} />
+            <TenantList
+              tenants={tenants}
+              error={error}
+              onRefresh={loadTenants}
+              onProvision={(t) => setAgentTarget(t)}
+            />
           </section>
         </main>
 
@@ -342,6 +534,12 @@ export default function AdminConsole() {
           open={nuovoOpen}
           onClose={() => setNuovoOpen(false)}
           onCreated={() => { setNuovoOpen(false); loadTenants(); }}
+        />
+
+        <AggiuntaAgenteDialog
+          open={agentTarget !== null}
+          onClose={() => setAgentTarget(null)}
+          tenant={agentTarget}
         />
       </div>
     </RequirePlatformAdmin>
