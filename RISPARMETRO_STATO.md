@@ -44,7 +44,7 @@ Legenda: ✅ fatto · ⏳ da fare · 🟡 parziale · ⏸️ in attesa esterna �
 - **C12** ⏳ Console super-admin · **C13** ⏳ 💰 Onboarding + white-label branding · **C14** ⏳ Inviti team + auth completo
 
 ### Blocco D — Hardening
-- **D15** 🟡 Audit completato + R1 fixato. ✅ R1: narrow SELECT cte + fetch provvigioni gated `!clientMode`. ⏳ R2: migration `impostazioni`. ⏳ R3: migration `sg_provvigioni` (prima di attivare la feature). Test `rls.cross-tenant.test.ts` ha 3 `it.skip` placeholder → da implementare come step 3.
+- **D15** ✅ (parziale) R1 ✅ narrow SELECT cte, R2 ✅ hook orfano rimosso. R3 ⏸️ `impostazioni` table: decisione globale-vs-tenant parcheggiata → blocco C (onboarding tenant). `rls.cross-tenant.test.ts` ha 3 `it.skip` → step futuro.
 - **D16** ⏳ Osservabilità (Sentry)
 - **D17** ✅ Dead-code: isola Motore B rimossa · `AnalisiTab.tsx` + `FiltriRapidiChips.tsx` orfani rimossi · warning GoTrueClient eliminato (due `createClient` → un'istanza canonica con fallback chiave)
 - **D18** ⏳ QA tablet iPad reale
@@ -70,13 +70,13 @@ Legenda: ✅ fatto · ⏳ da fare · 🟡 parziale · ⏸️ in attesa esterna �
 | 9 | B11 parità PDF — durata bloccata in OfferCard + "Preventivo valido fino al" nel footer | (questo commit) | build OK, 33/3/0 |
 | 10 | D15 step 1 — audit RLS read-only: colonne CTE sensibili, 7 rischi catalogati, tabelle fantasma, bundle scan | `f78783a` | docs-only |
 | 11 | D15 R1: narrow SELECT cte + fetch provvigioni gated su !clientMode (belt-and-suspenders) | `b4781be` | build OK, 33/3/0 |
+| 12 | D15 R2: rimosso hook orfano useSgProvvigioni (zero consumer, tabella fantasma sg_provvigioni) | `29df98f` | build OK, 33/3/0 |
 
 ---
 
 ## Prossimo step
 
-- **D15 step 2** — Fix dai rischi R1/R2/R3 nell'audit: narrow SELECT su cte, migration tabelle fantasma.
-- **B8** — StoricoTab v2 su `simulazioni` (DOPO D15 step 2 completato).
+- **B8** — StoricoTab v2 su `simulazioni` (D15 R1+R2 completati, R3 parcheggiato → si può procedere).
 - **V2/V3** — Enrico scrive le liste contenuti (tips/obiezioni/close) → poi si genera il codice.
 
 ---
