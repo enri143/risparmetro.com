@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
-import { AlertTriangle, ArrowLeft, Phone, Trash2, Zap, Flame } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ChevronDown, Phone, Trash2, Zap, Flame } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { eur } from "@/lib/board/formatters";
@@ -15,7 +16,19 @@ import type { RisultatoOfferta } from "@/lib/board/calcoloOfferte";
 interface ClienteJoin {
   nome: string | null;
   cognome: string | null;
+  ragione_sociale: string | null;
   telefono: string | null;
+  email: string | null;
+  segmento: string | null;
+  indirizzo: string | null;
+  comune: string | null;
+  cap: string | null;
+  provincia: string | null;
+  pod: string | null;
+  pdr: string | null;
+  fornitore_attuale: string | null;
+  offerta_attuale: string | null;
+  scadenza_offerta: string | null;
 }
 
 interface SimulazioneRow {
@@ -89,18 +102,74 @@ function OfferSnapshotCard({
 
       <div className="flex items-center justify-between pt-1 border-t border-border-ui">
         <span className="text-xs text-text-muted">Totale annuo</span>
-        <span className="text-sm font-semibold text-text-base">{eur(r.costo_annuo_totale)} €</span>
+        <span className="text-sm font-semibold text-text-base">{eur(r.costo_annuo_totale)}</span>
       </div>
 
       {r.risparmio_annuo > 0 && (
         <div className="flex items-center justify-between">
           <span className="text-xs text-text-muted">Risparmio stimato</span>
           <span className="text-sm font-semibold text-savings">
-            +{eur(r.risparmio_annuo)} € ({r.risparmio_percentuale.toFixed(1)}%)
+            +{eur(r.risparmio_annuo)} ({r.risparmio_percentuale.toFixed(1)}%)
           </span>
         </div>
       )}
     </div>
+  );
+}
+
+// ── ClienteDettaglioSection ───────────────────────────────────────────────────
+
+function ClienteDettaglioSection({ c }: { c: ClienteJoin }) {
+  const [open, setOpen] = useState(false);
+
+  const intestatario =
+    c.ragione_sociale || [c.nome, c.cognome].filter(Boolean).join(" ") || null;
+  const localita = [c.cap, c.comune, c.provincia].filter(Boolean).join(" ");
+  const indirizzo = [c.indirizzo, localita].filter(Boolean).join(", ") || null;
+
+  const segmentoLabel: Record<string, string> = {
+    residenziale: "Residenziale",
+    business: "Business",
+    entrambi: "Entrambi",
+  };
+
+  const rows: { label: string; value: string | null }[] = [
+    { label: "Intestatario", value: intestatario },
+    { label: "Segmento", value: c.segmento ? (segmentoLabel[c.segmento] ?? c.segmento) : null },
+    { label: "Telefono", value: c.telefono },
+    { label: "Email", value: c.email },
+    { label: "Indirizzo", value: indirizzo },
+    { label: "POD", value: c.pod },
+    { label: "PDR", value: c.pdr },
+    { label: "Fornitore attuale", value: c.fornitore_attuale },
+    { label: "Offerta attuale", value: c.offerta_attuale },
+    { label: "Scadenza offerta", value: c.scadenza_offerta },
+  ].filter((r): r is { label: string; value: string } => Boolean(r.value));
+
+  if (rows.length === 0) return null;
+
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <CollapsibleTrigger className="flex w-full items-center justify-between gap-2 rounded-xl border border-border-ui px-4 py-3 text-sm hover:bg-surface-subtle min-h-[44px] transition-colors">
+        <span className="font-medium text-text-base">Dettaglio cliente / fornitura</span>
+        <ChevronDown
+          className={cn(
+            "w-4 h-4 text-text-muted transition-transform duration-200",
+            open && "rotate-180",
+          )}
+        />
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <div className="mt-1 rounded-xl border border-border-ui bg-surface-subtle divide-y divide-border-ui overflow-hidden">
+          {rows.map(({ label, value }) => (
+            <div key={label} className="flex items-baseline justify-between gap-4 px-4 py-2.5">
+              <span className="text-xs text-text-muted shrink-0">{label}</span>
+              <span className="text-xs text-text-base text-right break-all">{value}</span>
+            </div>
+          ))}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 
@@ -138,6 +207,9 @@ function DetailView({
           </Badge>
         )}
       </div>
+
+      {/* Cliente / fornitura */}
+      {sim.clienti && <ClienteDettaglioSection c={sim.clienti} />}
 
       {/* Snapshot warning */}
       <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
@@ -210,7 +282,7 @@ export function StoricoTab() {
     const { data } = await supabase
       .from("simulazioni")
       .select(
-        "id, dati_input, snapshot_offerte, offerta_scelta_id, risparmio_annuo, risparmio_percentuale, stato, created_at, clienti(nome, cognome, telefono)",
+        "id, dati_input, snapshot_offerte, offerta_scelta_id, risparmio_annuo, risparmio_percentuale, stato, created_at, clienti(nome, cognome, ragione_sociale, telefono, email, segmento, indirizzo, comune, cap, provincia, pod, pdr, fornitore_attuale, offerta_attuale, scadenza_offerta)",
       )
       .order("created_at", { ascending: false });
     setRows((data ?? []) as unknown as SimulazioneRow[]);
@@ -288,7 +360,7 @@ export function StoricoTab() {
 
             {risparmio > 0 && (
               <p className="text-sm font-semibold text-savings">
-                +{eur(risparmio)} € / anno
+                +{eur(risparmio)} / anno
               </p>
             )}
 
