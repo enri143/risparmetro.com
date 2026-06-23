@@ -6,6 +6,7 @@ import { Upload, FileText, X, Bot, Save, Loader2 } from "lucide-react";
 import { fileToBase64, type CTEEstratta } from "@/lib/board/claude";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { matchFornitore } from "@/lib/board/matchFornitore";
 
 type Stato = "idle" | "analizzando" | "ok" | "errore";
 interface Estratto { dati: CTEEstratta; conferma: boolean; }
@@ -80,21 +81,31 @@ export function UploadPdfFlow({ open, onClose, onSaved }: { open: boolean; onClo
     const tenantId = membership.tenant_id;
 
     const { data: fornitori } = await supabase.from("fornitori").select("id, nome");
-    const fid = (nome: string): string | null => {
-      const n = nome.trim().toLowerCase();
-      return fornitori?.find((f) => f.nome.trim().toLowerCase() === n)?.id ?? null;
-    };
 
-    const payload = righe
-      .filter((r) => r.stato === "ok")
-      .flatMap((r) =>
-        r.estratti.filter((e) => e.conferma).map((e) => {
-          const d = e.dati;
-          const isLuce = d.tipo === "luce";
-          const tipoPrezzo = d.tipo_prezzo === "index" ? "indicizzato" : "fisso";
-          return {
-            tenant_id: tenantId,
-            fornitore_id: fid(d.fornitore),
+    async function resolveFornitoreId(nome?: string): Promise<string | null> {
+      if (!nome?.trim()) return null;
+      const matched = matchFornitore(nome, fornitori ?? []);
+      if (matched) return matched;
+      const slug = nome.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+      const { data } = await supabase
+        .from("fornitori")
+        .upsert({ slug, nome: nome.trim(), attivo: true }, { onConflict: "slug" })
+        .select("id")
+        .single();
+      return data?.id ?? null;
+    }
+
+    const payload = await Promise.all(
+      righe
+        .filter((r) => r.stato === "ok")
+        .flatMap((r) =>
+          r.estratti.filter((e) => e.conferma).map(async (e) => {
+            const d = e.dati;
+            const isLuce = d.tipo === "luce";
+            const tipoPrezzo = d.tipo_prezzo === "index" ? "indicizzato" : "fisso";
+            return {
+              tenant_id: tenantId,
+              fornitore_id: await resolveFornitoreId(d.fornitore),
             nome: d.nome,
             tipo_fornitura: d.tipo,
             segmento: d.segmento === "business" ? "business" : "residenziale",
@@ -111,8 +122,9 @@ export function UploadPdfFlow({ open, onClose, onSaved }: { open: boolean; onClo
             target_note: d.note || null,
             attiva: true,
           };
-        })
-      );
+          })
+        )
+    );
 
     if (!payload.length) return;
     setSalvando(true);
