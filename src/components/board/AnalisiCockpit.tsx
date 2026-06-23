@@ -52,14 +52,17 @@ interface SupabaseCteRow {
   prezzo_energia_gas: number | null;
   spread_gas: number | null;
   quota_fissa_gas: number | null;
-  mesi_storno_rischio: number | null;
-  priorita: number;
-  provvigione_override: number | null;
-  provvigione_tipo: string | null;
   durata_blocco_mesi: number | null;
+  priorita: number;
   segmento: "residenziale" | "business" | "entrambi";
   fornitori: { nome: string; colore: string | null } | null;
   componenti_venditore?: { label: string; valore: string }[];
+}
+
+interface ProvvigioniRow {
+  provvigione_override: number | null;
+  provvigione_tipo: string | null;
+  mesi_storno_rischio: number | null;
 }
 
 type CTEConSegmento = CTE & { segmento_cliente?: "residenziale" | "business" | "entrambi" };
@@ -76,7 +79,7 @@ type ResidenzaSeg = "residente" | "non_residente";
 
 // ── Adapter ───────────────────────────────────────────────────────────────────
 
-function adaptCte(row: SupabaseCteRow): CTEConSegmento {
+function adaptCte(row: SupabaseCteRow, prov?: ProvvigioniRow | null): CTEConSegmento {
   return {
     id: row.id,
     nome: row.nome,
@@ -91,9 +94,9 @@ function adaptCte(row: SupabaseCteRow): CTEConSegmento {
     spread_gas: row.spread_gas ?? undefined,
     quota_fissa_gas: row.quota_fissa_gas ?? undefined,
     durata_blocco_mesi: row.durata_blocco_mesi ?? undefined,
-    provvigione: row.provvigione_override ?? undefined,
-    provvigione_tipo: (row.provvigione_tipo as "fisso" | "percentuale") ?? undefined,
-    mesi_storno_rischio: row.mesi_storno_rischio ?? undefined,
+    provvigione: prov?.provvigione_override ?? undefined,
+    provvigione_tipo: (prov?.provvigione_tipo as "fisso" | "percentuale") ?? undefined,
+    mesi_storno_rischio: prov?.mesi_storno_rischio ?? undefined,
     priorita: row.priorita,
     segmento_cliente: row.segmento,
   };
@@ -352,6 +355,7 @@ export function AnalisiCockpit() {
   const [showDettagliato, setShowDettagliato] = useState(false);
   const [clientMode, setClientMode] = useState(false);
   const [showProvvigioni, setShowProvvigioni] = useState(true);
+  const [provvigioniMap, setProvvigioniMap] = useState<Record<string, ProvvigioniRow>>({});
   const [selectedCteId, setSelectedCteId] = useState<string | null>(null);
   const [showMaxi, setShowMaxi] = useState(false);
   const [maxiRevealMode, setMaxiRevealMode] = useState(false);
@@ -417,7 +421,7 @@ export function AnalisiCockpit() {
         supabase.from("zone_territoriali").select("*").order("regione"),
         supabase
           .from("cte")
-          .select("*, fornitori(nome, colore)")
+          .select("id, nome, tipo_fornitura, tipo_prezzo, prezzo_energia_luce, spread_luce, quota_fissa_luce, prezzo_energia_gas, spread_gas, quota_fissa_gas, durata_blocco_mesi, priorita, segmento, componenti_venditore, fornitori(nome, colore)")
           .eq("attiva", true)
           .order("priorita", { ascending: false }),
         supabase
@@ -455,6 +459,32 @@ export function AnalisiCockpit() {
     load();
     return () => { mounted = false; };
   }, []);
+
+  // ── Provvigioni — caricamento SOLO in modalità agente ────────────────────────
+  useEffect(() => {
+    if (clientMode) {
+      setProvvigioniMap({});
+      return;
+    }
+    if (rawCtes.length === 0) return;
+    async function loadProvvigioni() {
+      const { data } = await supabase
+        .from("cte")
+        .select("id, provvigione_override, provvigione_tipo, mesi_storno_rischio")
+        .eq("attiva", true);
+      if (!data) return;
+      const map: Record<string, ProvvigioniRow> = {};
+      for (const row of data as (ProvvigioniRow & { id: string })[]) {
+        map[row.id] = {
+          provvigione_override: row.provvigione_override,
+          provvigione_tipo: row.provvigione_tipo,
+          mesi_storno_rischio: row.mesi_storno_rischio,
+        };
+      }
+      setProvvigioniMap(map);
+    }
+    void loadProvvigioni();
+  }, [clientMode, rawCtes]);
 
   // ── Load ARERA params on region change ──────────────────────────────────────
   useEffect(() => {
@@ -527,7 +557,10 @@ export function AnalisiCockpit() {
   }, [dati.consumo_annuo_smc, prezzoMateriaGas, quotaFissaGasAtt]);
 
   // ── Results ───────────────────────────────────────────────────────────────────
-  const ctes = useMemo(() => rawCtes.map(adaptCte), [rawCtes]);
+  const ctes = useMemo(
+    () => rawCtes.map((row) => adaptCte(row, clientMode ? null : (provvigioniMap[row.id] ?? null))),
+    [rawCtes, provvigioniMap, clientMode],
+  );
 
   const risultatiLuce = useMemo(() => {
     if (!showResults || !showLuce || !(dati.consumo_annuo_kwh ?? 0)) return [];
