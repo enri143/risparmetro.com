@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { useSession } from "@/hooks/useSession";
 import { TabBar, type BoardTab } from "@/components/board/TabBar";
 import { ImpostazioniProvider } from "@/components/board/ImpostazioniContext";
+import { TenantBrandingProvider } from "@/hooks/useTenantBranding";
 import { AnalisiCockpit } from "@/components/board/AnalisiCockpit";
 import { ListinoTab } from "@/components/board/listino/ListinoTab";
 import { StoricoTab } from "@/components/board/analisi/StoricoTab";
@@ -39,6 +40,7 @@ export default function Board() {
 
   return (
     <ImpostazioniProvider>
+      <TenantBrandingProvider>
       <div className="min-h-screen bg-muted/30">
         <header className="bg-primary text-primary-foreground py-3 px-4 select-none">
           <div className="container mx-auto flex items-center justify-between">
@@ -85,6 +87,7 @@ export default function Board() {
         {tab === "impostazioni" && <ImpostazioniTab />}
         <ModalitaAgenteSheet />
       </div>
+      </TenantBrandingProvider>
     </ImpostazioniProvider>
   );
 }
