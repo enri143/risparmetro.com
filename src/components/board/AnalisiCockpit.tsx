@@ -20,7 +20,8 @@ import { MaxiTrattativaPanel } from "./analisi/MaxiTrattativaPanel";
 import { PresentazioneView } from "./PresentazioneView";
 import { TrattativaView } from "./TrattativaView";
 import { UploadBollettaButton, type OcrDoneResult } from "./analisi/UploadBollettaButton";
-import { buildClientePatch, type ClienteAnagrafica, type Extracted as OcrExtracted } from "@/lib/board/ocrBolletta";
+import { buildClientePatch, type Extracted as OcrExtracted } from "@/lib/board/ocrBolletta";
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import { eur } from "@/lib/board/formatters";
@@ -368,9 +369,20 @@ export function AnalisiCockpit() {
 
   // ── Cliente (opzionale, CRM) ──────────────────────────────────────────────────
   const [nomeCliente, setNomeCliente] = useState("");
+  const [cognomeCliente, setCognomeCliente] = useState("");
+  const [ragioneSocialeCliente, setRagioneSocialeCliente] = useState("");
   const [telefonoCliente, setTelefonoCliente] = useState("");
   const [noteCliente, setNoteCliente] = useState("");
-  const [ocrClientePatch, setOcrClientePatch] = useState<Partial<ClienteAnagrafica> | null>(null);
+  const [indirizzoCliente, setIndirizzoCliente] = useState("");
+  const [comuneCliente, setComuneCliente] = useState("");
+  const [capCliente, setCapCliente] = useState("");
+  const [provinciaCliente, setProvinciaCliente] = useState("");
+  const [podCliente, setPodCliente] = useState("");
+  const [pdrCliente, setPdrCliente] = useState("");
+  const [fornitoreAttualeCliente, setFornitoreAttualeCliente] = useState("");
+  const [offertaAttualeCliente, setOffertaAttualeCliente] = useState("");
+  const [scadenzaOffertaCliente, setScadenzaOffertaCliente] = useState("");
+  const [clienteDettaglioOpen, setClienteDettaglioOpen] = useState(false);
 
   // ── Helpers ──────────────────────────────────────────────────────────────────
   const set = (patch: Partial<DatiCliente>) => {
@@ -410,14 +422,27 @@ export function AnalisiCockpit() {
     if (extracted?.residente != null) setResidenzaSeg(extracted.residente ? "residente" : "non_residente");
 
     const cliPatch = buildClientePatch(extracted);
-    setOcrClientePatch(cliPatch);
-    // Prefilla nome se il form è vuoto e l'OCR ha estratto un intestatario
-    if (!nomeCliente) {
-      const nomeOcr = cliPatch.ragione_sociale
-        ?? [cliPatch.nome, cliPatch.cognome].filter(Boolean).join(' ')
-        ?? '';
-      if (nomeOcr) setNomeCliente(nomeOcr);
+    if (cliPatch.nome) setNomeCliente(cliPatch.nome);
+    if (cliPatch.cognome) setCognomeCliente(cliPatch.cognome);
+    if (cliPatch.ragione_sociale) {
+      setRagioneSocialeCliente(cliPatch.ragione_sociale);
+      if (!nomeCliente && !cliPatch.nome) setNomeCliente(cliPatch.ragione_sociale);
     }
+    if (cliPatch.indirizzo) setIndirizzoCliente(cliPatch.indirizzo);
+    if (cliPatch.comune) setComuneCliente(cliPatch.comune);
+    if (cliPatch.cap) setCapCliente(cliPatch.cap);
+    if (cliPatch.provincia) setProvinciaCliente(cliPatch.provincia);
+    if (cliPatch.pod) setPodCliente(cliPatch.pod);
+    if (cliPatch.pdr) setPdrCliente(cliPatch.pdr);
+    if (cliPatch.fornitore_attuale) setFornitoreAttualeCliente(cliPatch.fornitore_attuale);
+    if (cliPatch.offerta_attuale) setOffertaAttualeCliente(cliPatch.offerta_attuale);
+    if (cliPatch.scadenza_offerta) setScadenzaOffertaCliente(cliPatch.scadenza_offerta);
+    const hasAnag = !!(
+      cliPatch.cognome || cliPatch.ragione_sociale || cliPatch.indirizzo ||
+      cliPatch.pod || cliPatch.pdr || cliPatch.fornitore_attuale ||
+      cliPatch.offerta_attuale || cliPatch.scadenza_offerta
+    );
+    if (hasAnag) setClienteDettaglioOpen(true);
   };
 
   const handleOcrDone = (result: OcrDoneResult) => {
@@ -650,11 +675,25 @@ export function AnalisiCockpit() {
         throw new Error("Sessione non collegata: configura Supabase Auth prima di salvare.");
       }
 
-      // Upsert cliente se nome compilato OPPURE OCR ha estratto anagrafica
+      // Upsert cliente dai campi del form (solo valori non-vuoti — anti-wipe)
       let clienteId: string | null = null;
-      const ocrHasData = Object.keys(ocrClientePatch ?? {}).length > 0;
-      if (nomeCliente.trim() || ocrHasData) {
-        const telTrim = telefonoCliente.trim();
+      const cliRecord: Record<string, string> = {};
+      if (nomeCliente.trim()) cliRecord.nome = nomeCliente.trim();
+      if (cognomeCliente.trim()) cliRecord.cognome = cognomeCliente.trim();
+      if (ragioneSocialeCliente.trim()) cliRecord.ragione_sociale = ragioneSocialeCliente.trim();
+      if (telefonoCliente.trim()) cliRecord.telefono = telefonoCliente.trim();
+      if (indirizzoCliente.trim()) cliRecord.indirizzo = indirizzoCliente.trim();
+      if (comuneCliente.trim()) cliRecord.comune = comuneCliente.trim();
+      if (capCliente.trim()) cliRecord.cap = capCliente.trim();
+      if (provinciaCliente.trim()) cliRecord.provincia = provinciaCliente.trim();
+      if (podCliente.trim()) cliRecord.pod = podCliente.trim();
+      if (pdrCliente.trim()) cliRecord.pdr = pdrCliente.trim();
+      if (fornitoreAttualeCliente.trim()) cliRecord.fornitore_attuale = fornitoreAttualeCliente.trim();
+      if (offertaAttualeCliente.trim()) cliRecord.offerta_attuale = offertaAttualeCliente.trim();
+      if (scadenzaOffertaCliente.trim()) cliRecord.scadenza_offerta = scadenzaOffertaCliente.trim();
+
+      if (Object.keys(cliRecord).length > 0) {
+        const telTrim = cliRecord.telefono ?? "";
         if (telTrim) {
           const { data: esistente } = await supabase
             .from("clienti")
@@ -664,13 +703,7 @@ export function AnalisiCockpit() {
             .maybeSingle();
           if (esistente) {
             clienteId = (esistente as { id: string }).id;
-            if (ocrHasData) {
-              await supabase
-                .from("clienti")
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                .update(ocrClientePatch as any)
-                .eq("id", clienteId);
-            }
+            await supabase.from("clienti").update(cliRecord).eq("id", clienteId);
           }
         }
         if (!clienteId) {
@@ -678,12 +711,8 @@ export function AnalisiCockpit() {
             .from("clienti")
             .insert({
               tenant_id: tenantId as string,
-              nome: nomeCliente.trim() || null,
-              cognome: null,
-              telefono: telTrim || null,
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              ...(ocrClientePatch as any),
-              segmento: isBusiness ? "business" : "residenziale",  // explicit: wins over OCR
+              ...cliRecord,
+              segmento: isBusiness ? "business" : "residenziale",
             })
             .select("id")
             .single();
@@ -1169,6 +1198,157 @@ export function AnalisiCockpit() {
                 />
               </div>
             </div>
+
+            {/* Anagrafica / fornitura — espandibile */}
+            <Collapsible open={clienteDettaglioOpen} onOpenChange={setClienteDettaglioOpen}>
+              <CollapsibleTrigger className="flex w-full items-center justify-between gap-2 px-1 py-1.5 text-sm text-text-muted hover:text-text-base transition-colors min-h-[44px]">
+                <span className="font-medium">Dati anagrafica / fornitura</span>
+                <ChevronDown
+                  className={cn(
+                    "w-4 h-4 transition-transform duration-200",
+                    clienteDettaglioOpen && "rotate-180",
+                  )}
+                />
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="grid sm:grid-cols-2 gap-3 pt-1">
+                  <div className="relative">
+                    <label className="absolute -top-2 left-3 bg-white px-1 text-[11px] font-medium text-text-muted">
+                      Cognome
+                    </label>
+                    <input
+                      type="text"
+                      value={cognomeCliente}
+                      onChange={(e) => setCognomeCliente(e.target.value)}
+                      className="h-12 w-full px-4 text-sm rounded-lg border border-border-ui bg-white focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand placeholder:text-text-placeholder"
+                      placeholder="Rossi"
+                    />
+                  </div>
+                  <div className="relative">
+                    <label className="absolute -top-2 left-3 bg-white px-1 text-[11px] font-medium text-text-muted">
+                      Ragione sociale
+                    </label>
+                    <input
+                      type="text"
+                      value={ragioneSocialeCliente}
+                      onChange={(e) => setRagioneSocialeCliente(e.target.value)}
+                      className="h-12 w-full px-4 text-sm rounded-lg border border-border-ui bg-white focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand placeholder:text-text-placeholder"
+                      placeholder="Acme Srl"
+                    />
+                  </div>
+                  <div className="relative sm:col-span-2">
+                    <label className="absolute -top-2 left-3 bg-white px-1 text-[11px] font-medium text-text-muted">
+                      Indirizzo
+                    </label>
+                    <input
+                      type="text"
+                      value={indirizzoCliente}
+                      onChange={(e) => setIndirizzoCliente(e.target.value)}
+                      className="h-12 w-full px-4 text-sm rounded-lg border border-border-ui bg-white focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand placeholder:text-text-placeholder"
+                      placeholder="Via Roma 1"
+                    />
+                  </div>
+                  <div className="relative">
+                    <label className="absolute -top-2 left-3 bg-white px-1 text-[11px] font-medium text-text-muted">
+                      Comune
+                    </label>
+                    <input
+                      type="text"
+                      value={comuneCliente}
+                      onChange={(e) => setComuneCliente(e.target.value)}
+                      className="h-12 w-full px-4 text-sm rounded-lg border border-border-ui bg-white focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand placeholder:text-text-placeholder"
+                      placeholder="Milano"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="relative">
+                      <label className="absolute -top-2 left-3 bg-white px-1 text-[11px] font-medium text-text-muted">
+                        CAP
+                      </label>
+                      <input
+                        type="text"
+                        value={capCliente}
+                        onChange={(e) => setCapCliente(e.target.value)}
+                        className="h-12 w-full px-4 text-sm rounded-lg border border-border-ui bg-white focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand placeholder:text-text-placeholder"
+                        placeholder="20100"
+                      />
+                    </div>
+                    <div className="relative">
+                      <label className="absolute -top-2 left-3 bg-white px-1 text-[11px] font-medium text-text-muted">
+                        Provincia
+                      </label>
+                      <input
+                        type="text"
+                        value={provinciaCliente}
+                        onChange={(e) => setProvinciaCliente(e.target.value)}
+                        maxLength={2}
+                        className="h-12 w-full px-4 text-sm rounded-lg border border-border-ui bg-white focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand placeholder:text-text-placeholder"
+                        placeholder="MI"
+                      />
+                    </div>
+                  </div>
+                  <div className="relative">
+                    <label className="absolute -top-2 left-3 bg-white px-1 text-[11px] font-medium text-text-muted">
+                      POD
+                    </label>
+                    <input
+                      type="text"
+                      value={podCliente}
+                      onChange={(e) => setPodCliente(e.target.value)}
+                      className="h-12 w-full px-4 text-sm rounded-lg border border-border-ui bg-white focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand placeholder:text-text-placeholder"
+                      placeholder="IT001E12345678"
+                    />
+                  </div>
+                  <div className="relative">
+                    <label className="absolute -top-2 left-3 bg-white px-1 text-[11px] font-medium text-text-muted">
+                      PDR
+                    </label>
+                    <input
+                      type="text"
+                      value={pdrCliente}
+                      onChange={(e) => setPdrCliente(e.target.value)}
+                      className="h-12 w-full px-4 text-sm rounded-lg border border-border-ui bg-white focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand placeholder:text-text-placeholder"
+                      placeholder="12345678901234"
+                    />
+                  </div>
+                  <div className="relative">
+                    <label className="absolute -top-2 left-3 bg-white px-1 text-[11px] font-medium text-text-muted">
+                      Fornitore attuale
+                    </label>
+                    <input
+                      type="text"
+                      value={fornitoreAttualeCliente}
+                      onChange={(e) => setFornitoreAttualeCliente(e.target.value)}
+                      className="h-12 w-full px-4 text-sm rounded-lg border border-border-ui bg-white focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand placeholder:text-text-placeholder"
+                      placeholder="Enel"
+                    />
+                  </div>
+                  <div className="relative">
+                    <label className="absolute -top-2 left-3 bg-white px-1 text-[11px] font-medium text-text-muted">
+                      Offerta attuale
+                    </label>
+                    <input
+                      type="text"
+                      value={offertaAttualeCliente}
+                      onChange={(e) => setOffertaAttualeCliente(e.target.value)}
+                      className="h-12 w-full px-4 text-sm rounded-lg border border-border-ui bg-white focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand placeholder:text-text-placeholder"
+                      placeholder="Luce Flex"
+                    />
+                  </div>
+                  <div className="relative">
+                    <label className="absolute -top-2 left-3 bg-white px-1 text-[11px] font-medium text-text-muted">
+                      Scadenza offerta
+                    </label>
+                    <input
+                      type="date"
+                      value={scadenzaOffertaCliente}
+                      onChange={(e) => setScadenzaOffertaCliente(e.target.value)}
+                      className="h-12 w-full px-4 text-sm rounded-lg border border-border-ui bg-white focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand"
+                    />
+                  </div>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
           </div>
 
           {/* 9 — CTA */}
