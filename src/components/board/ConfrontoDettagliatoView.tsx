@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useOutletContext, useNavigate, Navigate } from "react-router-dom";
 import { ArrowLeft, CheckCircle2, ChevronDown, Eye, EyeOff, FileDown, Flame, Loader2, ShieldCheck, ShieldOff, Zap } from "lucide-react";
 import { generateReport } from "@/lib/pdf/generateReport";
 import { cn } from "@/lib/utils";
@@ -6,9 +7,9 @@ import { eur, eurUnit } from "@/lib/board/formatters";
 import {
   type CTE,
   type ParametriRegolati,
-  type PrezzoMercato,
   type RisultatoOfferta,
 } from "@/lib/board/calcoloOfferte";
+import type { AnalisiCtx } from "./AnalisiCockpit";
 
 // ── Local helpers ─────────────────────────────────────────────────────────────
 
@@ -330,39 +331,24 @@ function OfferDettaglioCard({
 
 // ── ConfrontoDettagliatoView ──────────────────────────────────────────────────
 
-export function ConfrontoDettagliatoView({
-  risultatiLuce,
-  risultatiGas,
-  ctes,
-  prezziMercato,
-  parametriLuce,
-  parametriGas,
-  spesaAnnuaLuce,
-  spesaAnnuaGas,
-  onBack,
-  clientMode,
-  onToggleClientMode,
-  showProvvigioni = true,
-  onToggleShowProvvigioni,
-  selectedCteId,
-  onSelectCte,
-}: {
-  risultatiLuce: RisultatoOfferta[];
-  risultatiGas: RisultatoOfferta[];
-  ctes: CTE[];
-  prezziMercato: PrezzoMercato;
-  parametriLuce: ParametriRegolati | null;
-  parametriGas: ParametriRegolati | null;
-  spesaAnnuaLuce: number;
-  spesaAnnuaGas: number;
-  onBack: () => void;
-  clientMode?: boolean;
-  onToggleClientMode?: () => void;
-  showProvvigioni?: boolean;
-  onToggleShowProvvigioni?: () => void;
-  selectedCteId?: string | null;
-  onSelectCte?: (id: string) => void;
-}) {
+export function ConfrontoDettagliatoView() {
+  const navigate = useNavigate();
+  const {
+    risultatiLuce,
+    risultatiGas,
+    ctes,
+    prezziMercato,
+    parametriLuce,
+    parametriGas,
+    spesaAnnuaLuce,
+    spesaAnnuaGas,
+    clientMode,
+    setClientMode,
+    showProvvigioni,
+    setShowProvvigioni,
+    selectedCteId,
+    setSelectedCteId,
+  } = useOutletContext<AnalisiCtx>();
   const allResults = useMemo<TaggedResult[]>(
     () =>
       [
@@ -388,24 +374,28 @@ export function ConfrontoDettagliatoView({
     }
   };
 
+  if (risultatiLuce.length === 0 && risultatiGas.length === 0) {
+    return <Navigate to="../dati" replace />;
+  }
+
   return (
-    <div className="mx-auto px-4 sm:px-6 py-5 max-w-screen-xl pb-28">
+    <div data-testid="analisi-dettaglio" className="mx-auto px-4 sm:px-6 py-5 max-w-screen-xl pb-28">
       {/* Header */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-4">
           <button
             type="button"
-            onClick={onBack}
+            onClick={() => navigate("../offerte")}
             className="flex items-center gap-1.5 text-sm text-text-muted hover:text-text-base transition-colors min-h-[44px]"
           >
             <ArrowLeft className="w-4 h-4" />
             Torna al riepilogo
           </button>
           <div className="flex items-center gap-2">
-            {onToggleClientMode && (
+            {(
               <button
                 type="button"
-                onClick={onToggleClientMode}
+                onClick={() => setClientMode(!clientMode)}
                 className={cn(
                   "flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-medium transition-all min-h-[44px]",
                   clientMode
@@ -421,10 +411,10 @@ export function ConfrontoDettagliatoView({
                 {clientMode ? "Modalità Cliente" : "Agente"}
               </button>
             )}
-            {onToggleShowProvvigioni && !clientMode && (
+            {!clientMode && (
               <button
                 type="button"
-                onClick={onToggleShowProvvigioni}
+                onClick={() => setShowProvvigioni(!showProvvigioni)}
                 className={cn(
                   "flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-medium transition-all min-h-[44px]",
                   showProvvigioni
@@ -488,7 +478,7 @@ export function ConfrontoDettagliatoView({
               clientMode={clientMode}
               showProvvigioni={showProvvigioni}
               isSelected={selectedCteId === r.cte_id}
-              onSelect={onSelectCte ? () => onSelectCte(r.cte_id) : undefined}
+              onSelect={() => setSelectedCteId(r.cte_id)}
             />
           ))}
         </div>
@@ -498,7 +488,7 @@ export function ConfrontoDettagliatoView({
       <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-border-ui px-4 sm:px-6 py-4 flex items-center justify-between gap-4">
         <button
           type="button"
-          onClick={onBack}
+          onClick={() => navigate("../offerte")}
           className="flex items-center gap-2 h-11 px-5 rounded-xl border border-border-ui text-sm font-medium text-text-base bg-white hover:bg-surface-subtle transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />

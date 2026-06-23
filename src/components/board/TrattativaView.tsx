@@ -1,31 +1,31 @@
 import { useState } from "react";
+import { useOutletContext, useNavigate, Navigate } from "react-router-dom";
 import { FileText, Loader2, X } from "lucide-react";
-import type { RisultatoOfferta } from "@/lib/board/calcoloOfferte";
 import { eur } from "@/lib/board/formatters";
 import { useTenantBranding } from "@/hooks/useTenantBranding";
 import { generateReport } from "@/lib/pdf/generateReport";
 import { cn } from "@/lib/utils";
 import { CopilotTrattativa } from "@/components/board/analisi/copilot/CopilotTrattativa";
+import type { AnalisiCtx } from "./AnalisiCockpit";
 
-interface Props {
-  offerta: RisultatoOfferta;
-  risultatiLuce: RisultatoOfferta[];
-  risultatiGas: RisultatoOfferta[];
-  spesaAnnuaLuce: number;
-  spesaAnnuaGas: number;
-  onClose: () => void;
-}
-
-export function TrattativaView({
-  offerta,
-  risultatiLuce,
-  risultatiGas,
-  spesaAnnuaLuce,
-  spesaAnnuaGas,
-  onClose,
-}: Props) {
+export function TrattativaView() {
+  const navigate = useNavigate();
+  const {
+    trattativaOfferta,
+    setTrattativaOfferta,
+    risultatiLuce,
+    risultatiGas,
+    spesaAnnuaLuce,
+    spesaAnnuaGas,
+  } = useOutletContext<AnalisiCtx>();
   const { branding } = useTenantBranding();
   const [generatingPdf, setGeneratingPdf] = useState(false);
+
+  if (!trattativaOfferta) {
+    return <Navigate to="../offerte" replace />;
+  }
+
+  const offerta = trattativaOfferta;
 
   const accentColor = branding?.accent_color ?? "#1D9E75";
   const VERDE = "#1D9E75";
@@ -58,7 +58,7 @@ export function TrattativaView({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-white flex flex-col overflow-hidden">
+    <div data-testid="analisi-chiudi" className="fixed inset-0 z-50 bg-white flex flex-col overflow-hidden">
 
       {/* ── HEADER ── */}
       <div
@@ -87,7 +87,7 @@ export function TrattativaView({
         </div>
 
         <button
-          onClick={onClose}
+          onClick={() => { setTrattativaOfferta(null); navigate("../offerte"); }}
           className="min-w-[44px] min-h-[44px] rounded-full border border-border-ui flex items-center justify-center hover:bg-surface-subtle transition-colors"
           aria-label="Chiudi"
         >
@@ -207,7 +207,7 @@ export function TrattativaView({
       {/* ── FOOTER CTA ── */}
       <div className="shrink-0 border-t border-border-ui px-6 sm:px-12 py-4 flex items-center justify-between gap-3">
         <button
-          onClick={onClose}
+          onClick={() => { setTrattativaOfferta(null); navigate("../offerte"); }}
           className="px-5 py-3 min-h-[48px] rounded-xl border border-border-ui text-sm font-medium text-text-muted hover:bg-surface-subtle transition-colors"
         >
           ← Torna al confronto

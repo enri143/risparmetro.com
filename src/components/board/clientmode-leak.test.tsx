@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ConfrontoDettagliatoView } from "./ConfrontoDettagliatoView";
@@ -12,39 +12,13 @@ vi.mock("@/integrations/supabase/client", () => ({
   supabase: { from: vi.fn(), rpc: vi.fn(), storage: { from: vi.fn() } },
 }));
 
-// Mocks per PresentazioneView (route /presenta)
+// Contesto mutabile — aggiornato per test tramite mockCtx
+let mockCtx: Record<string, unknown> = {};
+
 vi.mock("react-router-dom", () => ({
-  useOutletContext: () => ({
-    risultatiLuce: [{
-      cte_id: "cte-test-1",
-      nome: "Offerta Prova Fisso 12M",
-      fornitore_nome: "EnergiaCo SpA",
-      tipo_prezzo: "fisso" as const,
-      durata_blocco_mesi: 12,
-      costo_materia_energia: 614.16,
-      costo_trasporto: 0,
-      costo_oneri: 0,
-      costo_accise: 0,
-      imponibile: 717.12,
-      iva: 0,
-      quota_fissa_annua: 102.96,
-      sconti: 0,
-      costo_annuo_totale: 717.12,
-      risparmio_annuo: 280,
-      risparmio_percentuale: 28.1,
-      provvigione: 50,
-      provvigione_tipo: "fisso",
-      mesi_storno_rischio: 6,
-    }],
-    risultatiGas: [],
-    spesaAnnuaLuce: 997.12,
-    spesaAnnuaGas: 0,
-    dati: { tipo_fornitura: "luce", tipo_cliente: "domestico_residente", consumo_annuo_kwh: 2700, potenza_impegnata_kw: 3 },
-    parametriLuce: null,
-    parametriGas: null,
-    setShowDettagliato: vi.fn(),
-  }),
+  useOutletContext: () => mockCtx,
   useNavigate: () => vi.fn(),
+  Navigate: () => null,
 }));
 
 vi.mock("@/hooks/useTenantBranding", () => ({
@@ -103,7 +77,8 @@ const CTE_FIXTURE: CTE = {
   mesi_storno_rischio: 6,
 };
 
-const BASE_PROPS = {
+// Contesto base condiviso tra tutti i test
+const BASE_CTX = {
   risultatiLuce: [OFFERTA],
   risultatiGas: [],
   ctes: [CTE_FIXTURE],
@@ -112,12 +87,20 @@ const BASE_PROPS = {
   parametriGas: null,
   spesaAnnuaLuce: 997.12,
   spesaAnnuaGas: 0,
-  onBack: vi.fn(),
-  onToggleClientMode: vi.fn(),
-  onToggleShowProvvigioni: vi.fn(),
+  dati: { tipo_fornitura: "luce", tipo_cliente: "domestico_residente", consumo_annuo_kwh: 2700, potenza_impegnata_kw: 3 },
+  clientMode: false,
+  setClientMode: vi.fn(),
+  showProvvigioni: true,
+  setShowProvvigioni: vi.fn(),
   selectedCteId: null,
-  onSelectCte: vi.fn(),
+  setSelectedCteId: vi.fn(),
+  trattativaOfferta: null,
+  setTrattativaOfferta: vi.fn(),
 };
+
+beforeEach(() => {
+  mockCtx = { ...BASE_CTX };
+});
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -131,7 +114,8 @@ async function espandiDettagli() {
 
 describe("clientMode leak guard — ConfrontoDettagliatoView", () => {
   it("clientMode=true + showProvvigioni=true: dopo espansione NESSUN nodo contiene 'Provvigion' nel DOM", async () => {
-    render(<ConfrontoDettagliatoView {...BASE_PROPS} clientMode={true} showProvvigioni={true} />);
+    mockCtx = { ...BASE_CTX, clientMode: true, showProvvigioni: true };
+    render(<ConfrontoDettagliatoView />);
     await espandiDettagli();
 
     // Regex copre "Provvigione", "Provvigioni", ecc.
@@ -140,15 +124,15 @@ describe("clientMode leak guard — ConfrontoDettagliatoView", () => {
   });
 
   it("clientMode=true + showProvvigioni=true: dopo espansione il valore provvigione (50 €) non appare", async () => {
-    const { container } = render(
-      <ConfrontoDettagliatoView {...BASE_PROPS} clientMode={true} showProvvigioni={true} />,
-    );
+    mockCtx = { ...BASE_CTX, clientMode: true, showProvvigioni: true };
+    const { container } = render(<ConfrontoDettagliatoView />);
     await espandiDettagli();
     expect(container.textContent).not.toMatch(/50,00/);
   });
 
   it("clientMode=false + showProvvigioni=true (agente): dopo espansione 'Condizioni Agente' e 'Provvigione' visibili", async () => {
-    render(<ConfrontoDettagliatoView {...BASE_PROPS} clientMode={false} showProvvigioni={true} />);
+    mockCtx = { ...BASE_CTX, clientMode: false, showProvvigioni: true };
+    render(<ConfrontoDettagliatoView />);
     await espandiDettagli();
 
     // "Condizioni Agente" è unico (non appare in bottoni)
@@ -158,7 +142,8 @@ describe("clientMode leak guard — ConfrontoDettagliatoView", () => {
   });
 
   it("clientMode=false + showProvvigioni=false: dopo espansione sezione agente NON presente (toggle off)", async () => {
-    render(<ConfrontoDettagliatoView {...BASE_PROPS} clientMode={false} showProvvigioni={false} />);
+    mockCtx = { ...BASE_CTX, clientMode: false, showProvvigioni: false };
+    render(<ConfrontoDettagliatoView />);
     await espandiDettagli();
 
     expect(screen.queryByText(/Condizioni Agente/i)).toBeNull();

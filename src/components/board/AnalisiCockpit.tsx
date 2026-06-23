@@ -7,9 +7,7 @@ import {
   ShieldCheck,
   ShieldOff,
 } from "lucide-react";
-import { ConfrontoDettagliatoView } from "./ConfrontoDettagliatoView";
 import { MaxiTrattativaPanel } from "./analisi/MaxiTrattativaPanel";
-import { TrattativaView } from "./TrattativaView";
 import { type OcrDoneResult } from "./analisi/UploadBollettaButton";
 import { buildClientePatch, type Extracted as OcrExtracted } from "@/lib/board/ocrBolletta";
 import { supabase } from "@/lib/supabase";
@@ -60,6 +58,7 @@ export type AnalisiCtx = {
   zones: ZonaRow[];
   zonaInfo: ZonaRow | undefined;
   prezziMercato: PrezzoMercato;
+  ctes: CTE[];
   canCalcola: boolean;
   loadingZona: boolean;
   nomeCliente: string; setNomeCliente: (v: string) => void;
@@ -90,14 +89,18 @@ export type AnalisiCtx = {
   bestLuce: RisultatoOfferta | undefined;
   bestGas: RisultatoOfferta | undefined;
   totalRisparmio: number;
+  clientMode: boolean;
+  setClientMode: (v: boolean) => void;
+  showProvvigioni: boolean;
+  setShowProvvigioni: (v: boolean) => void;
   selectedCteId: string | null;
   setSelectedCteId: (id: string | null) => void;
   savingSimulazione: boolean;
   saveOk: boolean;
   saveError: string | null;
   handleSalvaSimulazione: () => Promise<void>;
+  trattativaOfferta: RisultatoOfferta | null;
   setTrattativaOfferta: (o: RisultatoOfferta | null) => void;
-  setShowDettagliato: (v: boolean) => void;
   parametriLuce: ParametriRegolati | null;
   parametriGas: ParametriRegolati | null;
 };
@@ -230,7 +233,6 @@ export function AnalisiCockpit() {
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   // ── Results state ────────────────────────────────────────────────────────────
-  const [showDettagliato, setShowDettagliato] = useState(false);
   const [clientMode, setClientMode] = useState(false);
   const [showProvvigioni, setShowProvvigioni] = useState(true);
   const [provvigioniMap, setProvvigioniMap] = useState<Record<string, ProvvigioniRow>>({});
@@ -263,7 +265,6 @@ export function AnalisiCockpit() {
   // ── Helpers ──────────────────────────────────────────────────────────────────
   const set = (patch: Partial<DatiCliente>) => {
     setDati((d) => ({ ...d, ...patch }));
-    setShowDettagliato(false);
     setSelectedCteId(null);
     setSaveOk(false);
     setSaveError(null);
@@ -271,7 +272,6 @@ export function AnalisiCockpit() {
 
   const resetResults = () => {
     navigate("/board/analisi/dati", { replace: true });
-    setShowDettagliato(false);
     setSelectedCteId(null);
     setSaveOk(false);
     setSaveError(null);
@@ -649,28 +649,6 @@ export function AnalisiCockpit() {
     );
   }
 
-  if (showDettagliato && isOnResults) {
-    return (
-      <ConfrontoDettagliatoView
-        risultatiLuce={risultatiLuce}
-        risultatiGas={risultatiGas}
-        ctes={ctes}
-        prezziMercato={prezziMercato}
-        parametriLuce={parametriLuce}
-        parametriGas={parametriGas}
-        spesaAnnuaLuce={spesaAnnuaLuce}
-        spesaAnnuaGas={spesaAnnuaGas}
-        onBack={() => setShowDettagliato(false)}
-        clientMode={clientMode}
-        onToggleClientMode={() => setClientMode((v) => !v)}
-        showProvvigioni={showProvvigioni}
-        onToggleShowProvvigioni={() => setShowProvvigioni((v) => !v)}
-        selectedCteId={selectedCteId}
-        onSelectCte={setSelectedCteId}
-      />
-    );
-  }
-
   // ── Outlet context ────────────────────────────────────────────────────────────
   const ctx: AnalisiCtx = {
     dati,
@@ -700,6 +678,7 @@ export function AnalisiCockpit() {
     zones,
     zonaInfo,
     prezziMercato,
+    ctes,
     canCalcola,
     loadingZona,
     nomeCliente, setNomeCliente,
@@ -730,14 +709,18 @@ export function AnalisiCockpit() {
     bestLuce,
     bestGas,
     totalRisparmio,
+    clientMode,
+    setClientMode,
+    showProvvigioni,
+    setShowProvvigioni,
     selectedCteId,
     setSelectedCteId,
     savingSimulazione,
     saveOk,
     saveError,
     handleSalvaSimulazione,
+    trattativaOfferta,
     setTrattativaOfferta,
-    setShowDettagliato,
     parametriLuce,
     parametriGas,
   };
@@ -751,16 +734,6 @@ export function AnalisiCockpit() {
           gas={risultatiGas}
           onClose={() => setShowMaxi(false)}
           revealMode={maxiRevealMode}
-        />
-      )}
-      {trattativaOfferta && (
-        <TrattativaView
-          offerta={trattativaOfferta}
-          risultatiLuce={risultatiLuce}
-          risultatiGas={risultatiGas}
-          spesaAnnuaLuce={spesaAnnuaLuce}
-          spesaAnnuaGas={spesaAnnuaGas}
-          onClose={() => setTrattativaOfferta(null)}
         />
       )}
       {/* Header */}

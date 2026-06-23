@@ -12,6 +12,8 @@ import { AnalisiCockpit } from "./components/board/AnalisiCockpit";
 import { AnalisiSetup } from "./components/board/analisi/AnalisiSetup";
 import { AnalisiOfferte } from "./components/board/analisi/AnalisiOfferte";
 import { PresentazioneView } from "./components/board/PresentazioneView";
+import { ConfrontoDettagliatoView } from "./components/board/ConfrontoDettagliatoView";
+import { TrattativaView } from "./components/board/TrattativaView";
 import { ListinoTab } from "./components/board/listino/ListinoTab";
 import { StoricoRoute } from "./components/board/analisi/StoricoRoute";
 import { ImpostazioniTab } from "./components/board/impostazioni/ImpostazioniTab";
@@ -38,6 +40,8 @@ createRoot(document.getElementById('root')!).render(
               <Route path="dati" element={<AnalisiSetup />} />
               <Route path="offerte" element={<AnalisiOfferte />} />
               <Route path="presenta" element={<PresentazioneView />} />
+              <Route path="dettaglio" element={<ConfrontoDettagliatoView />} />
+              <Route path="chiudi" element={<TrattativaView />} />
               <Route path="*" element={<Navigate to="dati" replace />} />
             </Route>
             <Route path="listino" element={<ListinoTab />} />
