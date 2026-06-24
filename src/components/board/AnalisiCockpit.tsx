@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { MaxiTrattativaPanel } from "./analisi/MaxiTrattativaPanel";
 import { AnalisiStepper } from "./analisi/AnalisiStepper";
+import { Skeleton } from "@/components/ui/skeleton";
 import { type OcrDoneResult } from "./analisi/UploadBollettaButton";
 import { buildClientePatch, type Extracted as OcrExtracted } from "@/lib/board/ocrBolletta";
 import { supabase } from "@/lib/supabase";
@@ -644,8 +645,28 @@ export function AnalisiCockpit() {
 
   if (loadingData) {
     return (
-      <div className="container mx-auto px-4 py-10 flex items-center justify-center">
-        <div className="text-sm text-text-muted">Caricamento offerte…</div>
+      <div
+        className="mx-auto px-4 sm:px-6 py-5 max-w-screen-xl"
+        aria-busy="true"
+      >
+        <span className="sr-only" aria-live="polite">Caricamento in corso</span>
+        {/* Stepper placeholder */}
+        <Skeleton className="h-14 w-full rounded-xl mb-5" />
+        {/* Header placeholder */}
+        <div className="flex items-center justify-between mb-6">
+          <Skeleton className="h-8 w-44 rounded-lg" />
+        </div>
+        {/* Content — neutral placeholders (non-specifici per form né offerte) */}
+        <div className="space-y-4">
+          <Skeleton className="h-20 w-full rounded-xl" />
+          <div className="flex gap-3">
+            <Skeleton className="h-10 w-28 rounded-xl" />
+          </div>
+          <Skeleton className="h-16 w-full rounded-xl" />
+          <Skeleton className="h-16 w-full rounded-xl" />
+          <Skeleton className="h-16 w-3/4 rounded-xl" />
+        </div>
+        <p className="text-sm text-text-muted mt-5">Carico listino e parametri…</p>
       </div>
     );
   }

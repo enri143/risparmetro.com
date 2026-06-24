@@ -263,7 +263,7 @@ export function AnalisiOfferte() {
       })()}
 
       {/* Offer lists */}
-      <div className="space-y-8">
+      <div className="space-y-5">
         {showLuce && risultatiLuce.length > 0 && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
@@ -295,7 +295,7 @@ export function AnalisiOfferte() {
           </div>
         )}
         {showLuce && risultatiLuce.length === 0 && (
-          <div className="rounded-xl border-2 border-dashed border-border-ui p-8 text-center text-text-muted text-sm">
+          <div className="rounded-xl border-2 border-dashed border-border-ui p-5 text-center text-text-muted text-sm">
             Nessuna offerta luce attiva nel listino.
           </div>
         )}
@@ -331,7 +331,7 @@ export function AnalisiOfferte() {
           </div>
         )}
         {showGas && risultatiGas.length === 0 && (
-          <div className="rounded-xl border-2 border-dashed border-border-ui p-8 text-center text-text-muted text-sm">
+          <div className="rounded-xl border-2 border-dashed border-border-ui p-5 text-center text-text-muted text-sm">
             Nessuna offerta gas attiva nel listino.
           </div>
         )}
