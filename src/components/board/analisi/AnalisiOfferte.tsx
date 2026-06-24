@@ -89,7 +89,7 @@ function StandardOfferCard({
 
         <div className="flex flex-col md:w-40 shrink-0">
           <span className="text-xs text-text-muted">Costo stimato</span>
-          <span className="font-semibold text-lg text-text-base">
+          <span className="font-semibold text-lg text-text-base tnum">
             {eur(r.costo_annuo_totale)}
             <span className="text-sm font-normal text-text-muted">/anno</span>
           </span>
@@ -102,7 +102,7 @@ function StandardOfferCard({
             </span>
             <span
               className={cn(
-                "font-bold text-2xl leading-tight",
+                "font-bold text-2xl leading-tight tnum",
                 negativo ? "text-spend" : "text-savings",
               )}
             >
@@ -110,7 +110,7 @@ function StandardOfferCard({
               {eur(Math.abs(r.risparmio_annuo))}
             </span>
             {r.risparmio_percentuale !== 0 && (
-              <span className={cn("text-xs", negativo ? "text-spend" : "text-savings")}>
+              <span className={cn("text-xs tnum", negativo ? "text-spend" : "text-savings")}>
                 {negativo ? "−" : "+"}
                 {Math.abs(r.risparmio_percentuale).toFixed(1)}%
               </span>
@@ -181,7 +181,7 @@ export function AnalisiOfferte() {
       <div data-testid="analisi-offerte" className="grid md:grid-cols-3 gap-4 bg-surface-subtle border border-border-ui rounded-xl p-5">
         <div className="space-y-1">
           <p className="text-xs text-text-muted">Spesa Attuale (Stimata)</p>
-          <p className="text-2xl font-bold text-text-base">
+          <p className="text-2xl font-bold text-text-base tnum">
             {eur(spesaAnnuaLuce + spesaAnnuaGas)}
             <span className="text-sm font-normal text-text-muted"> /anno</span>
           </p>
@@ -194,7 +194,7 @@ export function AnalisiOfferte() {
         </div>
         <div className="md:border-l border-border-ui md:pl-5 space-y-1">
           <p className="text-xs text-text-muted">Risparmio Massimo</p>
-          <p className="text-2xl font-bold text-savings">
+          <p className="text-2xl font-bold text-savings tnum">
             +{eur(totalRisparmio)}
             <span className="text-sm font-normal text-text-muted"> /anno</span>
           </p>
@@ -267,7 +267,7 @@ export function AnalisiOfferte() {
         {showLuce && risultatiLuce.length > 0 && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="font-semibold flex items-center gap-2 text-base text-text-base">
+              <h3 className="font-semibold flex items-center gap-2 text-section text-text-base">
                 <Zap className="w-4 h-4 text-yellow-500" />
                 Classifica Luce
               </h3>
@@ -303,7 +303,7 @@ export function AnalisiOfferte() {
         {showGas && risultatiGas.length > 0 && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="font-semibold flex items-center gap-2 text-base text-text-base">
+              <h3 className="font-semibold flex items-center gap-2 text-section text-text-base">
                 <Flame className="w-4 h-4 text-orange-500" />
                 Classifica Gas
               </h3>

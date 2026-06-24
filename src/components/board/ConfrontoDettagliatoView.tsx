@@ -181,7 +181,7 @@ function OfferDettaglioCard({
           <div className="text-[10px] font-bold uppercase tracking-wider text-text-muted mb-2">
             CCV (Quota Fissa)
           </div>
-          <div className="text-xl font-bold text-text-base">
+          <div className="text-xl font-bold text-text-base tnum">
             {eur(ccv)}
             <span className="text-sm font-normal text-text-muted">/anno</span>
           </div>
@@ -194,7 +194,7 @@ function OfferDettaglioCard({
           </div>
           <div
             className={cn(
-              "text-3xl font-bold leading-none",
+              "text-3xl font-bold leading-none tnum",
               isNeg ? "text-spend" : "text-savings",
             )}
           >
@@ -202,7 +202,7 @@ function OfferDettaglioCard({
             {eur(Math.abs(r.risparmio_annuo))}
           </div>
           {r.risparmio_percentuale !== 0 && spesaAttuale > 0 && (
-            <div className={cn("text-xs mt-1", isNeg ? "text-spend" : "text-savings")}>
+            <div className={cn("text-xs mt-1 tnum", isNeg ? "text-spend" : "text-savings")}>
               {isNeg ? "−" : "+"}
               {Math.abs(r.risparmio_percentuale).toFixed(1)}%
             </div>
@@ -255,18 +255,18 @@ function OfferDettaglioCard({
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-text-muted">Costo annuo stimato</span>
-                  <span className="font-semibold text-text-base">{eur(r.costo_annuo_totale)}</span>
+                  <span className="font-semibold text-text-base tnum">{eur(r.costo_annuo_totale)}</span>
                 </div>
                 {ccv > 0 && (
                   <div className="flex justify-between">
                     <span className="text-text-muted ml-3">di cui CCV</span>
-                    <span className="text-text-muted">{eur(ccv)}</span>
+                    <span className="text-text-muted tnum">{eur(ccv)}</span>
                   </div>
                 )}
                 {spesaAttuale > 0 && (
                   <div className="flex justify-between pt-2 border-t border-border-ui">
                     <span className="text-text-muted">Spesa attuale stimata</span>
-                    <span className="font-semibold text-text-base">{eur(spesaAttuale)}</span>
+                    <span className="font-semibold text-text-base tnum">{eur(spesaAttuale)}</span>
                   </div>
                 )}
                 <div
@@ -276,7 +276,7 @@ function OfferDettaglioCard({
                   )}
                 >
                   <span>{isNeg ? "Costo aggiuntivo" : "Risparmio netto"}</span>
-                  <span>
+                  <span className="tnum">
                     {isNeg ? "−" : "+"}
                     {eur(Math.abs(r.risparmio_annuo))}
                   </span>
@@ -295,7 +295,7 @@ function OfferDettaglioCard({
                     {r.provvigione !== undefined && (
                       <div className="flex justify-between">
                         <span className="text-text-muted">Provvigione</span>
-                        <span className="font-medium text-text-base">
+                        <span className="font-medium text-text-base tnum">
                           {r.provvigione_tipo === "percentuale"
                             ? `${r.provvigione}%`
                             : eur(r.provvigione)}
@@ -432,7 +432,7 @@ export function ConfrontoDettagliatoView() {
             )}
           </div>
         </div>
-        <h1 className="text-2xl font-bold text-text-base">Confronto Offerte Dettagliato</h1>
+        <h1 className="text-title font-bold text-text-base">Confronto Offerte Dettagliato</h1>
         <p className="text-sm text-text-muted mt-1">
           Analisi tecnica delle migliori tariffe disponibili sul mercato.
           {offerteCount > 0 && (
@@ -444,7 +444,7 @@ export function ConfrontoDettagliatoView() {
               — miglior risparmio{" "}
               <span
                 className={cn(
-                  "font-semibold",
+                  "font-semibold tnum",
                   migliorRisparmio >= 0 ? "text-savings" : "text-spend",
                 )}
               >

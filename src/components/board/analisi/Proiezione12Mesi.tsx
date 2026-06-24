@@ -52,7 +52,7 @@ export function Proiezione12Mesi({ spesaAnnua, costoOfferta, nomeOfferta }: Prop
           <p className="text-[10px] font-bold uppercase tracking-wider text-text-muted">
             Fine anno
           </p>
-          <p className="text-2xl font-bold text-savings leading-tight">
+          <p className="text-2xl font-bold text-savings leading-tight tnum">
             +{eur(risparmioTotale)}
           </p>
         </div>

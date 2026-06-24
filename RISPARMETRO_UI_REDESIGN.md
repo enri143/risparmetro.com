@@ -8,8 +8,8 @@
 
 ## Stato corrente (one-glance)
 
-- **Work-unit corrente**: WU4 (tipografia/display + tabular-nums + spacing/densità coerenti).
-- **Completati**: 3 / 13 formali (WU1 ✅ · WU2 ✅ · WU3 ✅: 3a · 3b).
+- **Work-unit corrente**: WU4b (spacing scale 4/8/12/16 + griglia 2-col iPad).
+- **Completati**: 3 / 13 formali (WU1 ✅ · WU2 ✅ · WU3 ✅). WU4 🟡 (4a ✅ · 4b ⏳).
 - **Test suite baseline**: `86 passed · 3 skipped · 0 failed`. Build verde. Da mantenere a ogni WU.
 - **App LIVE**: `https://risparmetro-com.vercel.app` (deploy on push, branch `main`).
 - **Regola**: ogni WU finisce con `npm run build && npm run test` verdi + commit isolato + aggiornamento di QUESTO file. MAI `git push` (lo fa Enrico).
@@ -61,7 +61,7 @@ Legenda: ✅ fatto · 🟡 parziale · ⏳ da fare · 🔴 rischio alto · ⭐ e
 | WU | Idee | Goal | Stato | Commit |
 |----|------|------|-------|--------|
 | WU3 | 4 + 9 | Transizioni di pagina (View Transitions/CSS) + skeleton/loading premium | ✅ | 3a: 2e61fcf · 3b: 6fa2b53 |
-| WU4 | 16 + 18 | Tipografia/display + `tabular-nums` sui numeri + spacing/densità coerenti | ⏳ | — |
+| WU4 | 16 + 18 | Tipografia/display + `tabular-nums` sui numeri + spacing/densità coerenti | 🟡 | 4a: (vedi log) · 4b: ⏳ |
 
 ### Fase 3 — Offerte
 | WU | Idee | Goal | Stato | Commit |
@@ -126,6 +126,7 @@ Legenda: ✅ fatto · 🟡 parziale · ⏳ da fare · 🔴 rischio alto · ⭐ e
 - (WU2b-2) `showDettagliato` eliminato: route `dettaglio` (`ConfrontoDettagliatoView`). `trattativaOfferta` overlay eliminato: route `chiudi` (`TrattativaView`). Entrambi convertiti da props a `useOutletContext<AnalisiCtx>()`. `AnalisiCtx` esteso con `ctes`, `clientMode`/`setClientMode`, `showProvvigioni`/`setShowProvvigioni`, `trattativaOfferta`. Guard redirect: `dettaglio` → `../dati` se no risultati; `chiudi` → `../offerte` se no `trattativaOfferta`. `data-testid="analisi-dettaglio"` e `"analisi-chiudi"` aggiunti. `clientmode-leak.test.tsx` refactored: contesto mutabile via `mockCtx` per ConfrontoDettagliatoView. Maxi overlay preservato. (81/3/0).
 - (WU2c) Stepper visivo route-synced. `stepperModel.ts` (pura: `getStepperModel(pathname, hasRisultati, hasTrattativa)` → `{ visible, steps }`). `AnalisiStepper.tsx` (presentational: 4 step orizzontali, connettori, numero/spunta, tenant accent via `useTenantBranding`). Montato come primo figlio in `AnalisiCockpit`. `visible=false` su `/presenta`. Completed steps mostrano checkmark e accent subtile. `stepperModel.test.ts`: 5 unit test puri, no DOM. (86/3/0).
 - (WU3a) View Transitions native tra step analisi. `viewTransition: true` aggiunto a tutte le navigate intra-step (goToOfferte, toolbar presenta/offerte, stepper click, dettaglio, chiudi, back/close in Dettaglio e Trattativa). Esclusi: guard redirect con replace:true, `<Navigate>` guard, navigazioni tra tab board. `<Outlet>` wrappato in `<div style={{ viewTransitionName: "analisi-step" }}>` — scope al solo contenuto step (stepper e toolbar restano statici). CSS in `index.css`: `animation: none` default (reduced-motion instant), fade+translateY(6px) a 200/220ms cubic-bezier(0.16,1,0.3,1) dentro `@media (prefers-reduced-motion: no-preference)`. Nessun polyfill, nessuna dipendenza. (86/3/0).
+- (WU4a) Scala tipografica semantica via token Tailwind v4 in `@theme`: 5 ruoli (display · title · section · body · caption), ciascuno con `--text-{role}--line-height` + `--text-{role}--letter-spacing`. Nessun nuovo font: tutto Inter Variable. h1 "Analisi Fornitura" e "Confronto Offerte Dettagliato" → `text-title` (28px, tracking -0.03em); h3 "Classifica Luce/Gas" → `text-section` (16px, tracking -0.01em). `@utility tnum { font-variant-numeric: tabular-nums; }` come classe canonica per i siti numerici. `tnum` aggiunto su tutti i gap: summary bar AnalisiOfferte, StandardOfferCard (costo, risparmio, pct), Proiezione12Mesi importo fine anno, ConfrontoDettagliatoView (CCV, risparmio, pct, dettagli espansi, provvigione, migliorRisparmio), AnalisiSetup PUN/PSV. Token body/caption definiti ma NON applicati (WU4b+). (86/3/0).
 - (WU3b) Skeleton premium per `loadingData` in `AnalisiCockpit`: layout shimmer generico (stepper placeholder + header + 5 righe contenuto) con `aria-busy="true"` + `<span sr-only aria-live="polite">Caricamento in corso</span>` + micro-copy "Carico listino e parametri…". Skeleton neutro (non specifico per form né offerte) per evitare mismatch con la route di destinazione. Vuoti morti evidenti rimossi in `AnalisiOfferte`: `space-y-8` → `space-y-5` sul div outer delle offerte, `p-8` → `p-5` sui div empty-state (replace_all). Scala spacing sistematica rimandata a WU4. (86/3/0).
 
 ---
@@ -142,3 +143,4 @@ Legenda: ✅ fatto · 🟡 parziale · ⏳ da fare · 🔴 rischio alto · ⭐ e
 | 24 giu 2026 | WU2c | dc557cd | stepperModel.ts pura + AnalisiStepper.tsx (4 step, tenant accent, visible=false su /presenta) + montato in AnalisiCockpit; 5 unit test puri; 86/3/0 ✅ |
 | 24 giu 2026 | WU3a | 2e61fcf | View Transitions native: viewTransition:true su tutte le navigate intra-step; Outlet wrappato in analisi-step; CSS fade+lift 200ms no-preference, instant reduced-motion; 86/3/0 ✅ |
 | 24 giu 2026 | WU3b | 6fa2b53 | skeleton premium loadingData (shimmer + aria-busy + aria-live + micro-copy); AnalisiOfferte: space-y-8→5 + p-8→p-5 empty-state; WU3 ✅; 86/3/0 ✅ |
+| 24 giu 2026 | WU4a | (vedi hash) | type scale semantico @theme (5 token display/title/section/body/caption); @utility tnum; h1→text-title; h3→text-section; tnum su tutti i siti numerici; 86/3/0 ✅ |

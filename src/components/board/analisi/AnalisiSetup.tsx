@@ -381,7 +381,7 @@ export function AnalisiSetup() {
                 <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
               </div>
               {zonaInfo && (
-                <p className="text-[11px] text-text-muted">
+                <p className="text-[11px] text-text-muted tnum">
                   PUN: {(prezziMercato.pun_medio * 100).toFixed(2)} c€/kWh · PSV:{" "}
                   {prezziMercato.psv_medio.toFixed(3)} €/Smc (media 30 gg)
                 </p>

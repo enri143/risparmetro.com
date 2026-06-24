@@ -97,6 +97,39 @@
     --color-text-base:      #1A1A2E;   /* corpo principale */
     --color-text-muted:     #6B6A82;   /* label, descrizioni secondarie */
     --color-text-placeholder: #A8A7BB; /* placeholder input */
+
+    /* ── TYPE SCALE SEMANTICO — Inter Variable ─────────────────────────────────
+       5 ruoli: display · title · section · body · caption.
+       Nessun nuovo font: tutto su Inter Variable già caricato.
+       Ogni token porta size + line-height + letter-spacing accoppiati.
+       Font-weight applicato separatamente con le utility Tailwind esistenti.
+       Usare: text-title, text-section (WU4a). text-display usato da WU6+.
+    ──────────────────────────────────────────────────────────────────────────── */
+
+    /* display — numeri hero (risparmio annuo, proiezione) */
+    --text-display:                  clamp(2.25rem, 8vw, 5.5rem);
+    --text-display--line-height:     1;
+    --text-display--letter-spacing:  -0.04em;
+
+    /* title — h1 di pagina ("Analisi Fornitura", "Confronto Offerte") */
+    --text-title:                    1.75rem;
+    --text-title--line-height:       1.15;
+    --text-title--letter-spacing:    -0.03em;
+
+    /* section — h3 di sezione ("Classifica Luce", "Classifica Gas") */
+    --text-section:                  1rem;
+    --text-section--line-height:     1.4;
+    --text-section--letter-spacing:  -0.01em;
+
+    /* body — testo corrente (14px) — token pronto, applicato da WU4b+ */
+    --text-body:                     0.875rem;
+    --text-body--line-height:        1.6;
+    --text-body--letter-spacing:     0em;
+
+    /* caption — label uppercase, micro-testo (11px) — token pronto, applicato da WU4b+ */
+    --text-caption:                  0.6875rem;
+    --text-caption--line-height:     1.4;
+    --text-caption--letter-spacing:  0.05em;
 }
 
 :root {
@@ -197,6 +230,15 @@
 }
 @utility bg-savings-bar {
   background-color: #1D9E75;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   UTILITY CANONICA — tnum
+   Usare su tutti i siti numerici (euro, %, kWh, Smc) per evitare layout shift
+   al cambio di cifre. Canonical: class="tnum" invece di tabular-nums inline.
+─────────────────────────────────────────────────────────────────────────────── */
+@utility tnum {
+  font-variant-numeric: tabular-nums;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
