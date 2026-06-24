@@ -61,7 +61,7 @@ Legenda: ✅ fatto · 🟡 parziale · ⏳ da fare · 🔴 rischio alto · ⭐ e
 | WU | Idee | Goal | Stato | Commit |
 |----|------|------|-------|--------|
 | WU3 | 4 + 9 | Transizioni di pagina (View Transitions/CSS) + skeleton/loading premium | ✅ | 3a: 2e61fcf · 3b: 6fa2b53 |
-| WU4 | 16 + 18 | Tipografia/display + `tabular-nums` sui numeri + spacing/densità coerenti | 🟡 | 4a: (vedi log) · 4b: ⏳ |
+| WU4 | 16 + 18 | Tipografia/display + `tabular-nums` sui numeri + spacing/densità coerenti | 🟡 | 4a: 7c53d25 · 4b: ⏳ |
 
 ### Fase 3 — Offerte
 | WU | Idee | Goal | Stato | Commit |
@@ -143,4 +143,4 @@ Legenda: ✅ fatto · 🟡 parziale · ⏳ da fare · 🔴 rischio alto · ⭐ e
 | 24 giu 2026 | WU2c | dc557cd | stepperModel.ts pura + AnalisiStepper.tsx (4 step, tenant accent, visible=false su /presenta) + montato in AnalisiCockpit; 5 unit test puri; 86/3/0 ✅ |
 | 24 giu 2026 | WU3a | 2e61fcf | View Transitions native: viewTransition:true su tutte le navigate intra-step; Outlet wrappato in analisi-step; CSS fade+lift 200ms no-preference, instant reduced-motion; 86/3/0 ✅ |
 | 24 giu 2026 | WU3b | 6fa2b53 | skeleton premium loadingData (shimmer + aria-busy + aria-live + micro-copy); AnalisiOfferte: space-y-8→5 + p-8→p-5 empty-state; WU3 ✅; 86/3/0 ✅ |
-| 24 giu 2026 | WU4a | (vedi hash) | type scale semantico @theme (5 token display/title/section/body/caption); @utility tnum; h1→text-title; h3→text-section; tnum su tutti i siti numerici; 86/3/0 ✅ |
+| 24 giu 2026 | WU4a | 7c53d25 | type scale semantico @theme (5 token display/title/section/body/caption); @utility tnum; h1→text-title; h3→text-section; tnum su tutti i siti numerici; 86/3/0 ✅ |
