@@ -61,7 +61,7 @@ Legenda: ✅ fatto · 🟡 parziale · ⏳ da fare · 🔴 rischio alto · ⭐ e
 | WU | Idee | Goal | Stato | Commit |
 |----|------|------|-------|--------|
 | WU3 | 4 + 9 | Transizioni di pagina (View Transitions/CSS) + skeleton/loading premium | ✅ | 3a: 2e61fcf · 3b: 6fa2b53 |
-| WU4 | 16 + 18 | Tipografia/display + `tabular-nums` sui numeri + spacing/densità coerenti | ✅ | 4a: 7c53d25 · 4b: WU4B_HASH |
+| WU4 | 16 + 18 | Tipografia/display + `tabular-nums` sui numeri + spacing/densità coerenti | ✅ | 4a: 7c53d25 · 4b: c257ebe |
 
 ### Fase 3 — Offerte
 | WU | Idee | Goal | Stato | Commit |
@@ -145,4 +145,4 @@ Legenda: ✅ fatto · 🟡 parziale · ⏳ da fare · 🔴 rischio alto · ⭐ e
 | 24 giu 2026 | WU3a | 2e61fcf | View Transitions native: viewTransition:true su tutte le navigate intra-step; Outlet wrappato in analisi-step; CSS fade+lift 200ms no-preference, instant reduced-motion; 86/3/0 ✅ |
 | 24 giu 2026 | WU3b | 6fa2b53 | skeleton premium loadingData (shimmer + aria-busy + aria-live + micro-copy); AnalisiOfferte: space-y-8→5 + p-8→p-5 empty-state; WU3 ✅; 86/3/0 ✅ |
 | 24 giu 2026 | WU4a | 7c53d25 | type scale semantico @theme (5 token display/title/section/body/caption); @utility tnum; h1→text-title; h3→text-section; tnum su tutti i siti numerici; 86/3/0 ✅ |
-| 24 giu 2026 | WU4b | WU4B_HASH | token body/caption su etichette AnalisiSetup; floating label text-[10px]/text-[11px]→text-caption; xl:→lg: breakpoint (form+dropzone split a 1024px iPad); luce+gas 2-col condizionale (cn grid lg:grid-cols-2); data-testid su 6 gruppi; WU4 ✅; 86/3/0 ✅ |
+| 24 giu 2026 | WU4b | c257ebe | token body/caption su etichette AnalisiSetup; floating label text-[10px]/text-[11px]→text-caption; xl:→lg: breakpoint (form+dropzone split a 1024px iPad); luce+gas 2-col condizionale (cn grid lg:grid-cols-2); data-testid su 6 gruppi; WU4 ✅; 86/3/0 ✅ |
