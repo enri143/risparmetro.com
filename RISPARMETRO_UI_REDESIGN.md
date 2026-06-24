@@ -60,7 +60,7 @@ Legenda: ✅ fatto · 🟡 parziale · ⏳ da fare · 🔴 rischio alto · ⭐ e
 ### Fase 2 — Design base (eredita tutto il resto)
 | WU | Idee | Goal | Stato | Commit |
 |----|------|------|-------|--------|
-| WU3 | 4 + 9 | Transizioni di pagina (View Transitions/CSS) + skeleton/loading premium | 🟡 | 3a: (WIP) |
+| WU3 | 4 + 9 | Transizioni di pagina (View Transitions/CSS) + skeleton/loading premium | 🟡 | 3a: 2e61fcf |
 | WU4 | 16 + 18 | Tipografia/display + `tabular-nums` sui numeri + spacing/densità coerenti | ⏳ | — |
 
 ### Fase 3 — Offerte
@@ -139,4 +139,4 @@ Legenda: ✅ fatto · 🟡 parziale · ⏳ da fare · 🔴 rischio alto · ⭐ e
 | 23 giu 2026 | WU2b | a404647 | route analisi dati/offerte/presenta; AnalisiCtx via Outlet; showResults/presentationMode → navigate; leak-test esteso a PresentazioneView; 81/3/0 ✅ |
 | 24 giu 2026 | WU2b-2 | dd55ca7 | route dettaglio+chiudi; ConfrontoDettagliatoView+TrattativaView → useOutletContext; AnalisiCtx +ctes/clientMode/showProvvigioni/trattativaOfferta; leak-test refactored mockCtx; 81/3/0 ✅ |
 | 24 giu 2026 | WU2c | dc557cd | stepperModel.ts pura + AnalisiStepper.tsx (4 step, tenant accent, visible=false su /presenta) + montato in AnalisiCockpit; 5 unit test puri; 86/3/0 ✅ |
-| 24 giu 2026 | WU3a | (WIP) | View Transitions native: viewTransition:true su tutte le navigate intra-step; Outlet wrappato in analisi-step; CSS fade+lift 200ms no-preference, instant reduced-motion; 86/3/0 ✅ |
+| 24 giu 2026 | WU3a | 2e61fcf | View Transitions native: viewTransition:true su tutte le navigate intra-step; Outlet wrappato in analisi-step; CSS fade+lift 200ms no-preference, instant reduced-motion; 86/3/0 ✅ |
