@@ -2,15 +2,15 @@
 
 > Fonte di verità dello stato del **redesign UI/UX**. Si aggiorna a fine di OGNI work-unit (commit isolato).
 > Build funzionale e logica: vedi `RISPARMETRO_STATO.md`. Invarianti complete: `RISPARMETRO_BUILD_PLAN.md` + `CLAUDE.md`.
-> **Ultimo aggiornamento: 24 giugno 2026** — WU2b-2 completato (route dettaglio + chiudi; showDettagliato + trattativaOfferta overlay → route), 1/13 WU formali + WU2a + WU2b + WU2b-2.
+> **Ultimo aggiornamento: 24 giugno 2026** — WU2c completato (stepper visivo sincronizzato con route). WU2 ✅ chiuso. 2/13 WU formali completati.
 
 ---
 
 ## Stato corrente (one-glance)
 
-- **Work-unit corrente**: WU2c (stepper visivo sincronizzato con route).
-- **Completati**: 1 / 13 formali (WU2 🟡 parziale: 2a ✅ · 2b ✅ · 2b-2 ✅ · 2c ⏳).
-- **Test suite baseline**: `81 passed · 3 skipped · 0 failed`. Build verde. Da mantenere a ogni WU.
+- **Work-unit corrente**: WU3 (transizioni di pagina + skeleton/loading premium).
+- **Completati**: 2 / 13 formali (WU1 ✅ · WU2 ✅: 2a · 2b · 2b-2 · 2c).
+- **Test suite baseline**: `86 passed · 3 skipped · 0 failed`. Build verde. Da mantenere a ogni WU.
 - **App LIVE**: `https://risparmetro-com.vercel.app` (deploy on push, branch `main`).
 - **Regola**: ogni WU finisce con `npm run build && npm run test` verdi + commit isolato + aggiornamento di QUESTO file. MAI `git push` (lo fa Enrico).
 
@@ -55,7 +55,7 @@ Legenda: ✅ fatto · 🟡 parziale · ⏳ da fare · 🔴 rischio alto · ⭐ e
 | WU | Idee | Goal | Stato | Commit |
 |----|------|------|-------|--------|
 | WU1 | 3 | Spezzare `AnalisiCockpit` in componenti (Setup / Offerte / Results) senza cambio comportamento | ✅ | ce80abc |
-| WU2 | 2 + 1 | Route annidate `/board/analisi/*` (dati→offerte→presenta→chiudi) + stepper visivo sincronizzato | 🟡 | 2a: 563a87c · 2b: a404647 · 2b-2: dd55ca7 |
+| WU2 | 2 + 1 | Route annidate `/board/analisi/*` (dati→offerte→presenta→chiudi) + stepper visivo sincronizzato | ✅ | 2a: 563a87c · 2b: a404647 · 2b-2: dd55ca7 · 2c: (WIP) |
 
 ### Fase 2 — Design base (eredita tutto il resto)
 | WU | Idee | Goal | Stato | Commit |
@@ -124,6 +124,7 @@ Legenda: ✅ fatto · 🟡 parziale · ⏳ da fare · 🔴 rischio alto · ⭐ e
 - (WU2) Spezzato in 2a/2b/2c per de-rischio: 2a routerizza i 4 tab board (evita il modello misto tab-state+route annidate); 2b introduce route interne sotto `/board/analisi/`; 2c aggiunge lo stepper. Tab board ora URL-driven: `/board/analisi`, `/board/listino`, `/board/storico`, `/board/impostazioni`. `Board.tsx` è layout puro con `<Outlet/>`. `TabBar` interfaccia invariata (active/onChange). `StoricoRoute` preserva il wrapper container. Catch-all `/board/*` → `/board/analisi`.
 - (WU2b) `AnalisiCockpit` diventa layout con `<Outlet context={ctx}/>`. `showResults`/`presentationMode` eliminati: sostituiti da `navigate('/board/analisi/offerte')` (`goToOfferte`) e `navigate('/board/analisi/dati')` (`resetResults`). `AnalisiCtx` esporta il tipo condiviso. `AnalisiSetup`, `AnalisiOfferte`, `PresentazioneView` convertiti a `useOutletContext<AnalisiCtx>()` senza props. Guard redirect su offerte/presenta se nessun risultato. `clientmode-leak.test.tsx` esteso: +2 test su PresentazioneView (81/3/0).
 - (WU2b-2) `showDettagliato` eliminato: route `dettaglio` (`ConfrontoDettagliatoView`). `trattativaOfferta` overlay eliminato: route `chiudi` (`TrattativaView`). Entrambi convertiti da props a `useOutletContext<AnalisiCtx>()`. `AnalisiCtx` esteso con `ctes`, `clientMode`/`setClientMode`, `showProvvigioni`/`setShowProvvigioni`, `trattativaOfferta`. Guard redirect: `dettaglio` → `../dati` se no risultati; `chiudi` → `../offerte` se no `trattativaOfferta`. `data-testid="analisi-dettaglio"` e `"analisi-chiudi"` aggiunti. `clientmode-leak.test.tsx` refactored: contesto mutabile via `mockCtx` per ConfrontoDettagliatoView. Maxi overlay preservato. (81/3/0).
+- (WU2c) Stepper visivo route-synced. `stepperModel.ts` (pura: `getStepperModel(pathname, hasRisultati, hasTrattativa)` → `{ visible, steps }`). `AnalisiStepper.tsx` (presentational: 4 step orizzontali, connettori, numero/spunta, tenant accent via `useTenantBranding`). Montato come primo figlio in `AnalisiCockpit`. `visible=false` su `/presenta`. Completed steps mostrano checkmark e accent subtile. `stepperModel.test.ts`: 5 unit test puri, no DOM. (86/3/0).
 
 ---
 
@@ -136,3 +137,4 @@ Legenda: ✅ fatto · 🟡 parziale · ⏳ da fare · 🔴 rischio alto · ⭐ e
 | 23 giu 2026 | WU2a | 563a87c | tab board route-driven (Board layout + Outlet + StoricoRoute); 79/3/0 ✅ |
 | 23 giu 2026 | WU2b | a404647 | route analisi dati/offerte/presenta; AnalisiCtx via Outlet; showResults/presentationMode → navigate; leak-test esteso a PresentazioneView; 81/3/0 ✅ |
 | 24 giu 2026 | WU2b-2 | dd55ca7 | route dettaglio+chiudi; ConfrontoDettagliatoView+TrattativaView → useOutletContext; AnalisiCtx +ctes/clientMode/showProvvigioni/trattativaOfferta; leak-test refactored mockCtx; 81/3/0 ✅ |
+| 24 giu 2026 | WU2c | (WIP) | stepperModel.ts pura + AnalisiStepper.tsx (4 step, tenant accent, visible=false su /presenta) + montato in AnalisiCockpit; 5 unit test puri; 86/3/0 ✅ |

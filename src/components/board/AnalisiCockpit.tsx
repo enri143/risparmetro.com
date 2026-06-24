@@ -8,6 +8,7 @@ import {
   ShieldOff,
 } from "lucide-react";
 import { MaxiTrattativaPanel } from "./analisi/MaxiTrattativaPanel";
+import { AnalisiStepper } from "./analisi/AnalisiStepper";
 import { type OcrDoneResult } from "./analisi/UploadBollettaButton";
 import { buildClientePatch, type Extracted as OcrExtracted } from "@/lib/board/ocrBolletta";
 import { supabase } from "@/lib/supabase";
@@ -728,6 +729,10 @@ export function AnalisiCockpit() {
   // ── Render ────────────────────────────────────────────────────────────────────
   return (
     <div className="mx-auto px-4 sm:px-6 py-5 max-w-screen-xl">
+      <AnalisiStepper
+        hasRisultati={risultatiLuce.length > 0 || risultatiGas.length > 0}
+        hasTrattativa={trattativaOfferta != null}
+      />
       {showMaxi && isOnResults && (
         <MaxiTrattativaPanel
           luce={risultatiLuce}
