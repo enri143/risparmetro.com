@@ -272,7 +272,7 @@ export function PresentazioneView() {
     parametriLuce,
     parametriGas,
   } = useOutletContext<AnalisiCtx>();
-  const onVediDettagliati = () => navigate("../dettaglio");
+  const onVediDettagliati = () => navigate("../dettaglio", { viewTransition: true });
 
   useEffect(() => {
     if (risultatiLuce.length === 0 && risultatiGas.length === 0) {

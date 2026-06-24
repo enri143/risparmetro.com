@@ -385,7 +385,7 @@ export function ConfrontoDettagliatoView() {
         <div className="flex items-center justify-between mb-4">
           <button
             type="button"
-            onClick={() => navigate("../offerte")}
+            onClick={() => navigate("../offerte", { viewTransition: true })}
             className="flex items-center gap-1.5 text-sm text-text-muted hover:text-text-base transition-colors min-h-[44px]"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -488,7 +488,7 @@ export function ConfrontoDettagliatoView() {
       <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-border-ui px-4 sm:px-6 py-4 flex items-center justify-between gap-4">
         <button
           type="button"
-          onClick={() => navigate("../offerte")}
+          onClick={() => navigate("../offerte", { viewTransition: true })}
           className="flex items-center gap-2 h-11 px-5 rounded-xl border border-border-ui text-sm font-medium text-text-base bg-white hover:bg-surface-subtle transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />

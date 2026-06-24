@@ -198,3 +198,36 @@
 @utility bg-savings-bar {
   background-color: #1D9E75;
 }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   VIEW TRANSITIONS — scope "analisi-step"
+   Anima solo il contenuto dello step (Outlet area in AnalisiCockpit).
+   Stepper e toolbar restano fuori dal named element e non transitano.
+   Fallback: con browser senza supporto l'API non parte (navigazione istantanea).
+   Reduced-motion: animation: none fuori dal media query → swap istantaneo.
+───────────────────────────────────────────────────────────────────────────── */
+
+/* Instant swap by default — handles reduced-motion and unsupported browsers */
+::view-transition-old(analisi-step),
+::view-transition-new(analisi-step) {
+  animation: none;
+}
+
+/* Smooth cross-fade + subtle lift — only when motion is acceptable */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes vt-analisi-out {
+    from { opacity: 1; transform: translateY(0); }
+    to   { opacity: 0; transform: translateY(-6px); }
+  }
+  @keyframes vt-analisi-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  ::view-transition-old(analisi-step) {
+    animation: 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards vt-analisi-out;
+  }
+  ::view-transition-new(analisi-step) {
+    animation: 220ms cubic-bezier(0.16, 1, 0.3, 1) forwards vt-analisi-in;
+  }
+}

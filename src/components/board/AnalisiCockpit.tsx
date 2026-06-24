@@ -699,7 +699,7 @@ export function AnalisiCockpit() {
     clienteDettaglioOpen, setClienteDettaglioOpen,
     handleOcrApply,
     handleOcrDone,
-    goToOfferte: () => navigate("/board/analisi/offerte"),
+    goToOfferte: () => navigate("/board/analisi/offerte", { viewTransition: true }),
     resetResults,
     risultatiLuce,
     risultatiGas,
@@ -765,7 +765,7 @@ export function AnalisiCockpit() {
             </button>
             <button
               type="button"
-              onClick={() => navigate(isPresenta ? "/board/analisi/offerte" : "/board/analisi/presenta")}
+              onClick={() => navigate(isPresenta ? "/board/analisi/offerte" : "/board/analisi/presenta", { viewTransition: true })}
               className={cn(
                 "flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-medium transition-all min-h-[44px]",
                 isPresenta
@@ -798,7 +798,9 @@ export function AnalisiCockpit() {
         )}
       </div>
 
-      <Outlet context={ctx} />
+      <div style={{ viewTransitionName: "analisi-step" }}>
+        <Outlet context={ctx} />
+      </div>
     </div>
   );
 }

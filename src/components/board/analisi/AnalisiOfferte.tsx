@@ -233,7 +233,7 @@ export function AnalisiOfferte() {
           return off ? (
             <button
               type="button"
-              onClick={() => { setTrattativaOfferta(off); navigate("../chiudi"); }}
+              onClick={() => { setTrattativaOfferta(off); navigate("../chiudi", { viewTransition: true }); }}
               className="flex items-center gap-2 h-10 px-4 rounded-xl border border-brand text-sm font-semibold text-brand hover:bg-brand-subtle transition-all min-h-[44px]"
             >
               <TrendingUp className="w-4 h-4" />
@@ -342,7 +342,7 @@ export function AnalisiOfferte() {
         <div className="flex justify-end pt-2">
           <button
             type="button"
-            onClick={() => navigate("../dettaglio")}
+            onClick={() => navigate("../dettaglio", { viewTransition: true })}
             className="flex items-center gap-2 h-10 px-4 rounded-xl border border-border-ui text-sm font-medium text-text-muted hover:text-text-base hover:bg-surface-subtle transition-colors"
           >
             Confronto Tecnico Dettagliato →

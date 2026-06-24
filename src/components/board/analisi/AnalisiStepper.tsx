@@ -29,7 +29,7 @@ export function AnalisiStepper({ hasRisultati, hasTrattativa }: Props) {
               data-testid={`step-${step.id}`}
               type="button"
               onClick={() => {
-                if (step.enabled && !step.active) navigate(`/board/analisi/${step.id}`);
+                if (step.enabled && !step.active) navigate(`/board/analisi/${step.id}`, { viewTransition: true });
               }}
               className={cn(
                 "flex flex-col items-center gap-1.5 min-h-[44px] min-w-[44px] px-2 justify-center shrink-0 rounded-lg",

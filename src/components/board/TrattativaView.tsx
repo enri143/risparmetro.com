@@ -87,7 +87,7 @@ export function TrattativaView() {
         </div>
 
         <button
-          onClick={() => { setTrattativaOfferta(null); navigate("../offerte"); }}
+          onClick={() => { setTrattativaOfferta(null); navigate("../offerte", { viewTransition: true }); }}
           className="min-w-[44px] min-h-[44px] rounded-full border border-border-ui flex items-center justify-center hover:bg-surface-subtle transition-colors"
           aria-label="Chiudi"
         >
@@ -207,7 +207,7 @@ export function TrattativaView() {
       {/* ── FOOTER CTA ── */}
       <div className="shrink-0 border-t border-border-ui px-6 sm:px-12 py-4 flex items-center justify-between gap-3">
         <button
-          onClick={() => { setTrattativaOfferta(null); navigate("../offerte"); }}
+          onClick={() => { setTrattativaOfferta(null); navigate("../offerte", { viewTransition: true }); }}
           className="px-5 py-3 min-h-[48px] rounded-xl border border-border-ui text-sm font-medium text-text-muted hover:bg-surface-subtle transition-colors"
         >
           ← Torna al confronto
