@@ -2,14 +2,14 @@
 
 > Fonte di verità dello stato del **redesign UI/UX**. Si aggiorna a fine di OGNI work-unit (commit isolato).
 > Build funzionale e logica: vedi `RISPARMETRO_STATO.md`. Invarianti complete: `RISPARMETRO_BUILD_PLAN.md` + `CLAUDE.md`.
-> **Ultimo aggiornamento: 24 giugno 2026** — WU3b completato (skeleton premium loadingData + micro-copy + a11y; vuoti morti evidenti rimossi in AnalisiOfferte). WU3 ✅ chiuso. 3/13 WU formali completati.
+> **Ultimo aggiornamento: 24 giugno 2026** — WU4b completato (token body/caption applicati; spacing scala 4/8/12/16; form 2-col iPad landscape; testid 6 gruppi). WU4 ✅ chiuso. 4/13 WU formali completati.
 
 ---
 
 ## Stato corrente (one-glance)
 
-- **Work-unit corrente**: WU4b (spacing scale 4/8/12/16 + griglia 2-col iPad).
-- **Completati**: 3 / 13 formali (WU1 ✅ · WU2 ✅ · WU3 ✅). WU4 🟡 (4a ✅ · 4b ⏳).
+- **Work-unit corrente**: WU5 (offerte full-bleed + card ridisegnate).
+- **Completati**: 4 / 13 formali (WU1 ✅ · WU2 ✅ · WU3 ✅ · WU4 ✅).
 - **Test suite baseline**: `86 passed · 3 skipped · 0 failed`. Build verde. Da mantenere a ogni WU.
 - **App LIVE**: `https://risparmetro-com.vercel.app` (deploy on push, branch `main`).
 - **Regola**: ogni WU finisce con `npm run build && npm run test` verdi + commit isolato + aggiornamento di QUESTO file. MAI `git push` (lo fa Enrico).
@@ -61,7 +61,7 @@ Legenda: ✅ fatto · 🟡 parziale · ⏳ da fare · 🔴 rischio alto · ⭐ e
 | WU | Idee | Goal | Stato | Commit |
 |----|------|------|-------|--------|
 | WU3 | 4 + 9 | Transizioni di pagina (View Transitions/CSS) + skeleton/loading premium | ✅ | 3a: 2e61fcf · 3b: 6fa2b53 |
-| WU4 | 16 + 18 | Tipografia/display + `tabular-nums` sui numeri + spacing/densità coerenti | 🟡 | 4a: 7c53d25 · 4b: ⏳ |
+| WU4 | 16 + 18 | Tipografia/display + `tabular-nums` sui numeri + spacing/densità coerenti | ✅ | 4a: 7c53d25 · 4b: WU4B_HASH |
 
 ### Fase 3 — Offerte
 | WU | Idee | Goal | Stato | Commit |
@@ -128,6 +128,7 @@ Legenda: ✅ fatto · 🟡 parziale · ⏳ da fare · 🔴 rischio alto · ⭐ e
 - (WU3a) View Transitions native tra step analisi. `viewTransition: true` aggiunto a tutte le navigate intra-step (goToOfferte, toolbar presenta/offerte, stepper click, dettaglio, chiudi, back/close in Dettaglio e Trattativa). Esclusi: guard redirect con replace:true, `<Navigate>` guard, navigazioni tra tab board. `<Outlet>` wrappato in `<div style={{ viewTransitionName: "analisi-step" }}>` — scope al solo contenuto step (stepper e toolbar restano statici). CSS in `index.css`: `animation: none` default (reduced-motion instant), fade+translateY(6px) a 200/220ms cubic-bezier(0.16,1,0.3,1) dentro `@media (prefers-reduced-motion: no-preference)`. Nessun polyfill, nessuna dipendenza. (86/3/0).
 - (WU4a) Scala tipografica semantica via token Tailwind v4 in `@theme`: 5 ruoli (display · title · section · body · caption), ciascuno con `--text-{role}--line-height` + `--text-{role}--letter-spacing`. Nessun nuovo font: tutto Inter Variable. h1 "Analisi Fornitura" e "Confronto Offerte Dettagliato" → `text-title` (28px, tracking -0.03em); h3 "Classifica Luce/Gas" → `text-section` (16px, tracking -0.01em). `@utility tnum { font-variant-numeric: tabular-nums; }` come classe canonica per i siti numerici. `tnum` aggiunto su tutti i gap: summary bar AnalisiOfferte, StandardOfferCard (costo, risparmio, pct), Proiezione12Mesi importo fine anno, ConfrontoDettagliatoView (CCV, risparmio, pct, dettagli espansi, provvigione, migliorRisparmio), AnalisiSetup PUN/PSV. Token body/caption definiti ma NON applicati (WU4b+). (86/3/0).
 - (WU3b) Skeleton premium per `loadingData` in `AnalisiCockpit`: layout shimmer generico (stepper placeholder + header + 5 righe contenuto) con `aria-busy="true"` + `<span sr-only aria-live="polite">Caricamento in corso</span>` + micro-copy "Carico listino e parametri…". Skeleton neutro (non specifico per form né offerte) per evitare mismatch con la route di destinazione. Vuoti morti evidenti rimossi in `AnalisiOfferte`: `space-y-8` → `space-y-5` sul div outer delle offerte, `p-8` → `p-5` sui div empty-state (replace_all). Scala spacing sistematica rimandata a WU4. (86/3/0).
+- (WU4b) Token `text-body` e `text-caption` applicati a tutte le etichette e floating label di `AnalisiSetup` (rimpiazzano `text-[10px]`/`text-[11px]`). Breakpoint outer grid `xl:` → `lg:` (1024px) per far scattare il layout form+dropzone su iPad landscape 1180px. Blocchi luce e gas wrappati in `{(showLuce || showGas) && <div className={cn("grid gap-4", showLuce && showGas && "lg:grid-cols-2")}>}`: 2 colonne solo quando entrambi visibili, singola altrimenti. `data-testid` aggiunto su 6 gruppi logici: `setup-group-tipo`, `setup-group-potenza`, `setup-group-consumi-luce`, `setup-group-consumi-gas`, `setup-group-avanzati`, `setup-group-cliente`. Con WU4 chiude la Fase 2 design base.
 
 ---
 
@@ -144,3 +145,4 @@ Legenda: ✅ fatto · 🟡 parziale · ⏳ da fare · 🔴 rischio alto · ⭐ e
 | 24 giu 2026 | WU3a | 2e61fcf | View Transitions native: viewTransition:true su tutte le navigate intra-step; Outlet wrappato in analisi-step; CSS fade+lift 200ms no-preference, instant reduced-motion; 86/3/0 ✅ |
 | 24 giu 2026 | WU3b | 6fa2b53 | skeleton premium loadingData (shimmer + aria-busy + aria-live + micro-copy); AnalisiOfferte: space-y-8→5 + p-8→p-5 empty-state; WU3 ✅; 86/3/0 ✅ |
 | 24 giu 2026 | WU4a | 7c53d25 | type scale semantico @theme (5 token display/title/section/body/caption); @utility tnum; h1→text-title; h3→text-section; tnum su tutti i siti numerici; 86/3/0 ✅ |
+| 24 giu 2026 | WU4b | WU4B_HASH | token body/caption su etichette AnalisiSetup; floating label text-[10px]/text-[11px]→text-caption; xl:→lg: breakpoint (form+dropzone split a 1024px iPad); luce+gas 2-col condizionale (cn grid lg:grid-cols-2); data-testid su 6 gruppi; WU4 ✅; 86/3/0 ✅ |

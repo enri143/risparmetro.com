@@ -125,14 +125,14 @@ export function AnalisiSetup() {
     handleOcrDone,
   } = useOutletContext<AnalisiCtx>();
   return (
-    <div data-testid="analisi-setup" className="grid xl:grid-cols-12 gap-5 items-start">
+    <div data-testid="analisi-setup" className="grid lg:grid-cols-12 gap-5 items-start">
       {/* Form */}
-      <div className="xl:col-span-7 bg-white border border-border-ui rounded-xl p-6 shadow-sm space-y-6">
+      <div className="lg:col-span-7 bg-white border border-border-ui rounded-xl p-6 shadow-sm space-y-6">
 
         {/* 1 — Tipo fornitura + Tipo cliente */}
-        <div className="grid md:grid-cols-2 gap-5">
+        <div data-testid="setup-group-tipo" className="grid md:grid-cols-2 gap-5">
           <div className="space-y-2">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-text-muted">
+            <label className="text-caption font-bold uppercase tracking-wider text-text-muted">
               Tipo fornitura
             </label>
             <SegControl
@@ -142,7 +142,7 @@ export function AnalisiSetup() {
             />
           </div>
           <div className="space-y-2">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-text-muted">
+            <label className="text-caption font-bold uppercase tracking-wider text-text-muted">
               Tipo cliente
             </label>
             <SegControl<ClienteSeg>
@@ -162,7 +162,7 @@ export function AnalisiSetup() {
         {/* 2 — Residenza (solo domestico) */}
         {!isBusiness && (
           <div className="space-y-2">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-text-muted">
+            <label className="text-caption font-bold uppercase tracking-wider text-text-muted">
               Residenza
             </label>
             <SegControl<ResidenzaSeg>
@@ -177,8 +177,8 @@ export function AnalisiSetup() {
         )}
 
         {/* 3 — Potenza disponibile */}
-        <div className="space-y-2">
-          <label className="text-[10px] font-bold uppercase tracking-wider text-text-muted">
+        <div data-testid="setup-group-potenza" className="space-y-2">
+          <label className="text-caption font-bold uppercase tracking-wider text-text-muted">
             Potenza disponibile (kW)
           </label>
           <div className="relative">
@@ -218,127 +218,130 @@ export function AnalisiSetup() {
           )}
         </div>
 
-        {/* 4 — Blocco LUCE */}
-        {showLuce && (
-          <div className="bg-surface-subtle border border-border-ui rounded-xl p-5 space-y-4">
-            <div className="flex items-center gap-2">
-              <Zap className="w-4 h-4 text-yellow-500" />
-              <span className="text-sm font-semibold text-text-base">Energia Elettrica</span>
-            </div>
-            <div className="grid sm:grid-cols-3 gap-4">
-              <div className="relative">
-                <label className="absolute -top-2 left-3 bg-white px-1 text-[11px] font-medium text-text-muted">
-                  Consumo annuo (kWh)
-                </label>
-                <input
-                  type="number"
-                  min={0}
-                  step={100}
-                  value={dati.consumo_annuo_kwh ?? ""}
-                  onChange={(e) =>
-                    set({ consumo_annuo_kwh: parseInt(e.target.value) || 0 })
-                  }
-                  className="h-12 w-full px-4 text-sm rounded-lg border border-border-ui bg-white focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand placeholder:text-text-placeholder"
-                  placeholder="es. 2700"
-                />
+        {/* 4+5 — Blocchi LUCE / GAS: 2 colonne su lg quando entrambi visibili */}
+        {(showLuce || showGas) && (
+          <div className={cn("grid gap-4", showLuce && showGas && "lg:grid-cols-2")}>
+            {showLuce && (
+              <div data-testid="setup-group-consumi-luce" className="bg-surface-subtle border border-border-ui rounded-xl p-5 space-y-4">
+                <div className="flex items-center gap-2">
+                  <Zap className="w-4 h-4 text-yellow-500" />
+                  <span className="text-body font-semibold text-text-base">Energia Elettrica</span>
+                </div>
+                <div className="grid sm:grid-cols-3 gap-4">
+                  <div className="relative">
+                    <label className="absolute -top-2 left-3 bg-white px-1 text-caption font-medium text-text-muted">
+                      Consumo annuo (kWh)
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      step={100}
+                      value={dati.consumo_annuo_kwh ?? ""}
+                      onChange={(e) =>
+                        set({ consumo_annuo_kwh: parseInt(e.target.value) || 0 })
+                      }
+                      className="h-12 w-full px-4 text-sm rounded-lg border border-border-ui bg-white focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand placeholder:text-text-placeholder"
+                      placeholder="es. 2700"
+                    />
+                  </div>
+                  <div className="relative">
+                    <label className="absolute -top-2 left-3 bg-white px-1 text-caption font-medium text-text-muted">
+                      Prezzo materia prima (€/kWh)
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      step={0.0001}
+                      value={prezzoMateriaLuce}
+                      onChange={(e) => {
+                        setPrezzoMateriaLuce(e.target.value);
+                        resetResults();
+                      }}
+                      className="h-12 w-full px-4 text-sm rounded-lg border border-border-ui bg-white focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand placeholder:text-text-placeholder"
+                      placeholder="es. 0.1250"
+                    />
+                  </div>
+                  <div className="relative">
+                    <label className="absolute -top-2 left-3 bg-white px-1 text-caption font-medium text-text-muted">
+                      Quota fissa (€/mese)
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      step={0.01}
+                      value={quotaFissaLuceAtt}
+                      onChange={(e) => {
+                        setQuotaFissaLuceAtt(e.target.value);
+                        resetResults();
+                      }}
+                      className="h-12 w-full px-4 text-sm rounded-lg border border-border-ui bg-white focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand placeholder:text-text-placeholder"
+                      placeholder="es. 14.50"
+                    />
+                  </div>
+                </div>
               </div>
-              <div className="relative">
-                <label className="absolute -top-2 left-3 bg-white px-1 text-[11px] font-medium text-text-muted">
-                  Prezzo materia prima (€/kWh)
-                </label>
-                <input
-                  type="number"
-                  min={0}
-                  step={0.0001}
-                  value={prezzoMateriaLuce}
-                  onChange={(e) => {
-                    setPrezzoMateriaLuce(e.target.value);
-                    resetResults();
-                  }}
-                  className="h-12 w-full px-4 text-sm rounded-lg border border-border-ui bg-white focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand placeholder:text-text-placeholder"
-                  placeholder="es. 0.1250"
-                />
-              </div>
-              <div className="relative">
-                <label className="absolute -top-2 left-3 bg-white px-1 text-[11px] font-medium text-text-muted">
-                  Quota fissa (€/mese)
-                </label>
-                <input
-                  type="number"
-                  min={0}
-                  step={0.01}
-                  value={quotaFissaLuceAtt}
-                  onChange={(e) => {
-                    setQuotaFissaLuceAtt(e.target.value);
-                    resetResults();
-                  }}
-                  className="h-12 w-full px-4 text-sm rounded-lg border border-border-ui bg-white focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand placeholder:text-text-placeholder"
-                  placeholder="es. 14.50"
-                />
-              </div>
-            </div>
-          </div>
-        )}
+            )}
 
-        {/* 5 — Blocco GAS */}
-        {showGas && (
-          <div className="bg-surface-subtle border border-border-ui rounded-xl p-5 space-y-4">
-            <div className="flex items-center gap-2">
-              <Flame className="w-4 h-4 text-orange-500" />
-              <span className="text-sm font-semibold text-text-base">Gas Naturale</span>
-            </div>
-            <div className="grid sm:grid-cols-3 gap-4">
-              <div className="relative">
-                <label className="absolute -top-2 left-3 bg-white px-1 text-[11px] font-medium text-text-muted">
-                  Consumo annuo (Smc)
-                </label>
-                <input
-                  type="number"
-                  min={0}
-                  step={50}
-                  value={dati.consumo_annuo_smc ?? ""}
-                  onChange={(e) =>
-                    set({ consumo_annuo_smc: parseInt(e.target.value) || 0 })
-                  }
-                  className="h-12 w-full px-4 text-sm rounded-lg border border-border-ui bg-white focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand placeholder:text-text-placeholder"
-                  placeholder="es. 1200"
-                />
+            {showGas && (
+              <div data-testid="setup-group-consumi-gas" className="bg-surface-subtle border border-border-ui rounded-xl p-5 space-y-4">
+                <div className="flex items-center gap-2">
+                  <Flame className="w-4 h-4 text-orange-500" />
+                  <span className="text-body font-semibold text-text-base">Gas Naturale</span>
+                </div>
+                <div className="grid sm:grid-cols-3 gap-4">
+                  <div className="relative">
+                    <label className="absolute -top-2 left-3 bg-white px-1 text-caption font-medium text-text-muted">
+                      Consumo annuo (Smc)
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      step={50}
+                      value={dati.consumo_annuo_smc ?? ""}
+                      onChange={(e) =>
+                        set({ consumo_annuo_smc: parseInt(e.target.value) || 0 })
+                      }
+                      className="h-12 w-full px-4 text-sm rounded-lg border border-border-ui bg-white focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand placeholder:text-text-placeholder"
+                      placeholder="es. 1200"
+                    />
+                  </div>
+                  <div className="relative">
+                    <label className="absolute -top-2 left-3 bg-white px-1 text-caption font-medium text-text-muted">
+                      Prezzo materia prima (€/Smc)
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      step={0.001}
+                      value={prezzoMateriaGas}
+                      onChange={(e) => {
+                        setPrezzoMateriaGas(e.target.value);
+                        resetResults();
+                      }}
+                      className="h-12 w-full px-4 text-sm rounded-lg border border-border-ui bg-white focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand placeholder:text-text-placeholder"
+                      placeholder="es. 0.420"
+                    />
+                  </div>
+                  <div className="relative">
+                    <label className="absolute -top-2 left-3 bg-white px-1 text-caption font-medium text-text-muted">
+                      Quota fissa (€/mese)
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      step={0.01}
+                      value={quotaFissaGasAtt}
+                      onChange={(e) => {
+                        setQuotaFissaGasAtt(e.target.value);
+                        resetResults();
+                      }}
+                      className="h-12 w-full px-4 text-sm rounded-lg border border-border-ui bg-white focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand placeholder:text-text-placeholder"
+                      placeholder="es. 12.00"
+                    />
+                  </div>
+                </div>
               </div>
-              <div className="relative">
-                <label className="absolute -top-2 left-3 bg-white px-1 text-[11px] font-medium text-text-muted">
-                  Prezzo materia prima (€/Smc)
-                </label>
-                <input
-                  type="number"
-                  min={0}
-                  step={0.001}
-                  value={prezzoMateriaGas}
-                  onChange={(e) => {
-                    setPrezzoMateriaGas(e.target.value);
-                    resetResults();
-                  }}
-                  className="h-12 w-full px-4 text-sm rounded-lg border border-border-ui bg-white focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand placeholder:text-text-placeholder"
-                  placeholder="es. 0.420"
-                />
-              </div>
-              <div className="relative">
-                <label className="absolute -top-2 left-3 bg-white px-1 text-[11px] font-medium text-text-muted">
-                  Quota fissa (€/mese)
-                </label>
-                <input
-                  type="number"
-                  min={0}
-                  step={0.01}
-                  value={quotaFissaGasAtt}
-                  onChange={(e) => {
-                    setQuotaFissaGasAtt(e.target.value);
-                    resetResults();
-                  }}
-                  className="h-12 w-full px-4 text-sm rounded-lg border border-border-ui bg-white focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand placeholder:text-text-placeholder"
-                  placeholder="es. 12.00"
-                />
-              </div>
-            </div>
+            )}
           </div>
         )}
 
@@ -356,9 +359,9 @@ export function AnalisiSetup() {
 
         {/* 7 — Sezione avanzata */}
         {showAdvanced && (
-          <div className="pt-4 border-t border-border-ui space-y-5">
+          <div data-testid="setup-group-avanzati" className="pt-4 border-t border-border-ui space-y-5">
             <div className="space-y-2">
-              <label className="text-[10px] font-bold uppercase tracking-wider text-text-muted">
+              <label className="text-caption font-bold uppercase tracking-wider text-text-muted">
                 Zona ARERA — regione cliente
               </label>
               <div className="relative">
@@ -381,7 +384,7 @@ export function AnalisiSetup() {
                 <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
               </div>
               {zonaInfo && (
-                <p className="text-[11px] text-text-muted tnum">
+                <p className="text-caption text-text-muted tnum">
                   PUN: {(prezziMercato.pun_medio * 100).toFixed(2)} c€/kWh · PSV:{" "}
                   {prezziMercato.psv_medio.toFixed(3)} €/Smc (media 30 gg)
                 </p>
@@ -390,7 +393,7 @@ export function AnalisiSetup() {
 
             {showGas && zonaInfo?.ambito_gas && (
               <div className="space-y-2">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-text-muted">
+                <label className="text-caption font-bold uppercase tracking-wider text-text-muted">
                   Uso gas
                 </label>
                 <SegControl
@@ -404,15 +407,15 @@ export function AnalisiSetup() {
         )}
 
         {/* 8 — Cliente (opzionale) */}
-        <div className="bg-muted/30 rounded-lg p-4 space-y-3 border border-dashed border-muted-foreground/30">
-          <div className="flex items-center gap-2 text-sm font-medium text-text-muted">
+        <div data-testid="setup-group-cliente" className="bg-muted/30 rounded-lg p-4 space-y-3 border border-dashed border-muted-foreground/30">
+          <div className="flex items-center gap-2 text-body font-medium text-text-muted">
             <User className="w-4 h-4" />
             <span>Cliente</span>
-            <span className="text-xs opacity-70">opzionale, serve solo se vuoi salvare</span>
+            <span className="text-caption opacity-70">opzionale, serve solo se vuoi salvare</span>
           </div>
           <div className="grid sm:grid-cols-3 gap-3">
             <div className="relative">
-              <label className="absolute -top-2 left-3 bg-white px-1 text-[11px] font-medium text-text-muted">
+              <label className="absolute -top-2 left-3 bg-white px-1 text-caption font-medium text-text-muted">
                 Nome cliente
               </label>
               <input
@@ -424,7 +427,7 @@ export function AnalisiSetup() {
               />
             </div>
             <div className="relative">
-              <label className="absolute -top-2 left-3 bg-white px-1 text-[11px] font-medium text-text-muted">
+              <label className="absolute -top-2 left-3 bg-white px-1 text-caption font-medium text-text-muted">
                 Telefono
               </label>
               <input
@@ -436,7 +439,7 @@ export function AnalisiSetup() {
               />
             </div>
             <div className="relative">
-              <label className="absolute -top-2 left-3 bg-white px-1 text-[11px] font-medium text-text-muted">
+              <label className="absolute -top-2 left-3 bg-white px-1 text-caption font-medium text-text-muted">
                 Note
               </label>
               <input
@@ -463,7 +466,7 @@ export function AnalisiSetup() {
             <CollapsibleContent>
               <div className="grid sm:grid-cols-2 gap-3 pt-1">
                 <div className="relative">
-                  <label className="absolute -top-2 left-3 bg-white px-1 text-[11px] font-medium text-text-muted">
+                  <label className="absolute -top-2 left-3 bg-white px-1 text-caption font-medium text-text-muted">
                     Cognome
                   </label>
                   <input
@@ -475,7 +478,7 @@ export function AnalisiSetup() {
                   />
                 </div>
                 <div className="relative">
-                  <label className="absolute -top-2 left-3 bg-white px-1 text-[11px] font-medium text-text-muted">
+                  <label className="absolute -top-2 left-3 bg-white px-1 text-caption font-medium text-text-muted">
                     Ragione sociale
                   </label>
                   <input
@@ -487,7 +490,7 @@ export function AnalisiSetup() {
                   />
                 </div>
                 <div className="relative sm:col-span-2">
-                  <label className="absolute -top-2 left-3 bg-white px-1 text-[11px] font-medium text-text-muted">
+                  <label className="absolute -top-2 left-3 bg-white px-1 text-caption font-medium text-text-muted">
                     Indirizzo
                   </label>
                   <input
@@ -499,7 +502,7 @@ export function AnalisiSetup() {
                   />
                 </div>
                 <div className="relative">
-                  <label className="absolute -top-2 left-3 bg-white px-1 text-[11px] font-medium text-text-muted">
+                  <label className="absolute -top-2 left-3 bg-white px-1 text-caption font-medium text-text-muted">
                     Comune
                   </label>
                   <input
@@ -512,7 +515,7 @@ export function AnalisiSetup() {
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="relative">
-                    <label className="absolute -top-2 left-3 bg-white px-1 text-[11px] font-medium text-text-muted">
+                    <label className="absolute -top-2 left-3 bg-white px-1 text-caption font-medium text-text-muted">
                       CAP
                     </label>
                     <input
@@ -524,7 +527,7 @@ export function AnalisiSetup() {
                     />
                   </div>
                   <div className="relative">
-                    <label className="absolute -top-2 left-3 bg-white px-1 text-[11px] font-medium text-text-muted">
+                    <label className="absolute -top-2 left-3 bg-white px-1 text-caption font-medium text-text-muted">
                       Provincia
                     </label>
                     <input
@@ -538,7 +541,7 @@ export function AnalisiSetup() {
                   </div>
                 </div>
                 <div className="relative">
-                  <label className="absolute -top-2 left-3 bg-white px-1 text-[11px] font-medium text-text-muted">
+                  <label className="absolute -top-2 left-3 bg-white px-1 text-caption font-medium text-text-muted">
                     POD
                   </label>
                   <input
@@ -550,7 +553,7 @@ export function AnalisiSetup() {
                   />
                 </div>
                 <div className="relative">
-                  <label className="absolute -top-2 left-3 bg-white px-1 text-[11px] font-medium text-text-muted">
+                  <label className="absolute -top-2 left-3 bg-white px-1 text-caption font-medium text-text-muted">
                     PDR
                   </label>
                   <input
@@ -562,7 +565,7 @@ export function AnalisiSetup() {
                   />
                 </div>
                 <div className="relative">
-                  <label className="absolute -top-2 left-3 bg-white px-1 text-[11px] font-medium text-text-muted">
+                  <label className="absolute -top-2 left-3 bg-white px-1 text-caption font-medium text-text-muted">
                     Fornitore attuale
                   </label>
                   <input
@@ -574,7 +577,7 @@ export function AnalisiSetup() {
                   />
                 </div>
                 <div className="relative">
-                  <label className="absolute -top-2 left-3 bg-white px-1 text-[11px] font-medium text-text-muted">
+                  <label className="absolute -top-2 left-3 bg-white px-1 text-caption font-medium text-text-muted">
                     Offerta attuale
                   </label>
                   <input
@@ -586,7 +589,7 @@ export function AnalisiSetup() {
                   />
                 </div>
                 <div className="relative">
-                  <label className="absolute -top-2 left-3 bg-white px-1 text-[11px] font-medium text-text-muted">
+                  <label className="absolute -top-2 left-3 bg-white px-1 text-caption font-medium text-text-muted">
                     Scadenza offerta
                   </label>
                   <input
@@ -621,7 +624,7 @@ export function AnalisiSetup() {
       </div>
 
       {/* Dropzone bolletta */}
-      <div className="xl:col-span-5 min-h-[240px] flex flex-col justify-center">
+      <div className="lg:col-span-5 min-h-[240px] flex flex-col justify-center">
         <UploadBollettaButton
           dati={{
             segmento: isBusiness ? "business" : "family",
